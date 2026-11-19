@@ -35,6 +35,10 @@ These captures show the English interface. Device-specific Bluetooth identifiers
 
 The app is designed for power stations using a BrightEMS-compatible Bluetooth protocol. It has been tested with the AFERIY P280. The DC master control does **not** switch the XT60 output independently.
 
+## Disclaimer
+
+WattLibre is provided **as is**, without warranty. Use it at your own risk. The authors and contributors are not liable for damage caused by its use, including a power station being rendered unusable (“bricked”).
+
 ## Privacy and permissions
 
 WattLibre asks for Bluetooth permissions to find and connect to a station. Android 11 and older also require Location permission and the Location service enabled for Bluetooth scanning; WattLibre does not access location data.

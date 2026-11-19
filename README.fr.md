@@ -33,6 +33,10 @@ Les captures montrent l’interface française. Les informations Bluetooth ident
 
 L’application est conçue pour les stations utilisant un protocole Bluetooth compatible BrightEMS. Elle a été testée avec l’AFERIY P280. La commande maître DC ne coupe **pas** individuellement la sortie XT60.
 
+## Avertissement
+
+WattLibre est fourni **en l’état**, sans garantie. Son utilisation est à vos risques. Les auteurs et contributeurs ne sont pas responsables des dommages liés à son utilisation, notamment d’une station rendue inutilisable (« briquée »).
+
 ## Confidentialité et permissions
 
 WattLibre demande les permissions Bluetooth nécessaires à la recherche et à la connexion. Sur Android 11 et antérieur, Android exige aussi la permission de localisation et l’activation du service de localisation pour scanner en Bluetooth; WattLibre n’accède pas aux données de localisation.
