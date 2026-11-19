@@ -1,0 +1,4 @@
+- Show charging, discharging, or balanced status with net power.
+- Refresh output states periodically; configure the automatic refresh interval or disable it.
+- Scan all nearby Bluetooth devices and keep signal strength current.
+- Refresh diagnostics when opened; copied diagnostics include the app version for bug reports.
