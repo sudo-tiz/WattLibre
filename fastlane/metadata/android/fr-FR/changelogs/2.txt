@@ -1,0 +1,4 @@
+- Afficher l’état de charge, de décharge ou d’équilibre et la puissance nette.
+- Actualisation périodique des sorties, avec intervalle configurable ou désactivable.
+- Recherche de tous les appareils Bluetooth proches et mise à jour de la force du signal.
+- Actualiser le diagnostic à l’ouverture; la copie inclut la version de l’application pour les rapports de bug.

@@ -33,7 +33,9 @@ data class BatteryTelemetry(
     val acEnabled: Boolean,
     val lightEnabled: Boolean,
     val inputRegisters: List<Int> = emptyList(),
-)
+) {
+    val netPowerWatts: Int get() = totalInputWatts - totalOutputWatts
+}
 
 data class HoldingControlState(
     val holding5Raw: Int,

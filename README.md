@@ -21,11 +21,11 @@ Monitor and control compatible AFERIY, FOSSiBOT and SYDPOWER power stations from
 
 These captures show the English interface. Device-specific Bluetooth identifiers are hidden.
 
-| Choose a battery | Scan nearby | Connected station |
+| Choose a battery | Scan nearby | Battery overview |
 | --- | --- | --- |
-| <img src="assets/screenshots/01-device-picker.png" width="180" alt="Choose a battery"> | <img src="assets/screenshots/02-scan-results.png" width="180" alt="Battery found by Bluetooth"> | <img src="assets/screenshots/03-connection.png" width="180" alt="Connected battery dashboard"> |
-| Overview and controls | Input and output details | Diagnostics |
-| <img src="assets/screenshots/04-overview.png" width="180" alt="Battery overview and controls"> | <img src="assets/screenshots/05-input-output.png" width="180" alt="Input and output details"> | <img src="assets/screenshots/06-diagnostics.png" width="180" alt="Battery diagnostics"> |
+| <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/phone-01.png" width="180" alt="Choose a battery"> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/phone-02.png" width="180" alt="Nearby battery found by Bluetooth"> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/phone-04.png" width="180" alt="Battery overview and net power"> |
+| Input and output details | Diagnostics | |
+| <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/phone-05.png" width="180" alt="Input and output details"> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/phone-06.png" width="180" alt="Battery diagnostics"> | |
 
 ## Quick start
 

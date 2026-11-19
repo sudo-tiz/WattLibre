@@ -6,8 +6,8 @@
     <string name="scan_stop">Arrêter la recherche</string>
     <string name="devices_detected">Appareils détectés</string>
     <string name="back_devices">‹ Appareils</string>
-    <string name="device_subtitle">Suivi local de la batterie</string>
     <string name="device_bluetooth_name">Nom Bluetooth : %1$s</string>
+    <string name="device_unknown_name">Appareil Bluetooth sans nom</string>
     <string name="rename_title">Renommer l’appareil</string>
     <string name="rename_label">Nom affiché</string>
     <string name="save">Enregistrer</string>
@@ -18,6 +18,11 @@
     <string name="status_connected">CONNECTÉ</string>
     <string name="status_offline">HORS LIGNE</string>
     <string name="refresh">Actualiser</string>
+    <string name="auto_refresh_label">Auto (s)</string>
+    <string name="auto_refresh_help">0 désactive · maximum 3600</string>
+    <string name="auto_refresh_apply">Appliquer</string>
+    <string name="auto_refresh_set">Actualisation automatique toutes les %1$d secondes.</string>
+    <string name="auto_refresh_off">Actualisation automatique désactivée.</string>
     <string name="disconnect">Déconnecter</string>
     <string name="choose_another_device">Changer d’appareil</string>
     <string name="scan_in_progress">Recherche BLE en cours</string>
@@ -25,10 +30,13 @@
     <string name="scan_empty_help">Allumez la batterie, gardez-la à proximité, puis lancez une recherche.</string>
     <string name="scan_empty_scanning_help">Gardez la batterie allumée et à proximité.</string>
     <string name="choose_device">Choisir</string>
-    <string name="energy_brand">ÉNERGIE · EN LOCAL</string>
 
     <string name="battery_charge">CHARGE BATTERIE</string>
-    <string name="soc">SOC</string>
+    <string name="battery_charging">EN CHARGE</string>
+    <string name="battery_discharging">EN DÉCHARGE</string>
+    <string name="battery_balanced">ÉQUILIBRÉE</string>
+    <string name="net_power">PUISSANCE NETTE</string>
+    <string name="net_power_explanation">Entrée − sortie</string>
     <string name="data_waiting">En attente de la première mesure</string>
     <string name="data_stale">Données périmées · dernière lecture %1$s</string>
     <string name="data_fresh">Données à jour · %1$s</string>
@@ -114,7 +122,7 @@
     <string name="diagnostic_holdings_title">Holding registers · %1$d</string>
     <string name="diagnostic_waiting">Les mesures apparaîtront ici après connexion.</string>
     <string name="diagnostic_holdings_not_read">Holding registers pas encore lus.</string>
-    <string name="diagnostic_read_registers">Lire les registres</string>
+    <string name="diagnostic_read_registers">Actualiser le diagnostic</string>
     <string name="diagnostic_copy">Copier le diagnostic</string>
     <string name="report_found">Trouvé</string>
     <string name="report_missing">Absent</string>
@@ -164,10 +172,10 @@
     <string name="ble_diagnostic_read_done">Diagnostic lu sans écriture ; registres 24–27 affichés.</string>
     <string name="ble_state_unverified">État non vérifié ; aucune commande envoyée.</string>
     <string name="ble_bad_response">Réponse BLE reçue, mais format ou CRC invalide.</string>
-    <string name="ble_input_updated">État des entrées actualisé ; lecture des registres de commande…</string>
+    <string name="ble_input_updated">Mesures actualisées ; lecture des états de sortie…</string>
     <string name="ble_read_controls_before_action">Lecture des registres de commande avant l’action…</string>
     <string name="ble_wait_confirmation">Attente de confirmation dans les registres de commande…</string>
-    <string name="ble_measures_received">Mesures reçues · prochaine lecture dans quelques secondes.</string>
+    <string name="ble_measures_received">Mesures et états de sortie actualisés.</string>
     <string name="ble_characteristic_no_write">La caractéristique BLE n’accepte pas les requêtes.</string>
     <string name="ble_interrupted_code">Connexion BLE interrompue (%1$d).</string>
     <string name="ble_interrupted">Connexion interrompue.</string>

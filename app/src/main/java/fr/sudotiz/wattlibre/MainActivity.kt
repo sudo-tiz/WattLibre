@@ -40,6 +40,7 @@ class MainActivity : ComponentActivity(), BatteryBleClient.Listener {
     private var holdingControlState by mutableStateOf<HoldingControlState?>(null)
     private var telemetryStale by mutableStateOf(true)
     private var lastUpdatedAt by mutableStateOf<String?>(null)
+    private var autoRefreshSeconds by mutableStateOf(5)
     private lateinit var bleClient: BatteryBleClient
     private val preferences by lazy { getSharedPreferences("devices", MODE_PRIVATE) }
     private var bluetoothReceiverRegistered = false
@@ -63,6 +64,8 @@ class MainActivity : ComponentActivity(), BatteryBleClient.Listener {
         super.onCreate(savedInstanceState)
         bleClient = BatteryBleClient(this, this)
         bluetoothEnabled = readBluetoothState()
+        autoRefreshSeconds = preferences.getInt("auto_refresh_seconds", 5).coerceIn(0, MAX_AUTO_REFRESH_SECONDS)
+        bleClient.setPollIntervalSeconds(autoRefreshSeconds)
         status = getString(R.string.status_initial)
 
         setContent {
@@ -80,10 +83,12 @@ class MainActivity : ComponentActivity(), BatteryBleClient.Listener {
                 holdingControlState = holdingControlState,
                 telemetryStale = telemetryStale,
                 lastUpdatedAt = lastUpdatedAt,
+                autoRefreshSeconds = autoRefreshSeconds,
                 onScan = ::requestScan,
                 onConnect = ::connect,
                 onDisconnect = ::disconnect,
                 onRefresh = bleClient::refresh,
+                onSetAutoRefreshSeconds = ::setAutoRefreshInterval,
                 onControl = bleClient::toggleOutputControl,
                 onCycleLightMode = bleClient::cycleLightMode,
                 onRenameDevice = ::renameSelectedDevice,
@@ -209,6 +214,14 @@ class MainActivity : ComponentActivity(), BatteryBleClient.Listener {
         deviceNames[device.address] = cleanName
     }
 
+    private fun setAutoRefreshInterval(seconds: Int) {
+        autoRefreshSeconds = seconds.coerceIn(0, MAX_AUTO_REFRESH_SECONDS)
+        preferences.edit().putInt("auto_refresh_seconds", autoRefreshSeconds).apply()
+        bleClient.setPollIntervalSeconds(autoRefreshSeconds)
+        status = if (autoRefreshSeconds == 0) getString(R.string.auto_refresh_off)
+        else getString(R.string.auto_refresh_set, autoRefreshSeconds)
+    }
+
     private fun openBluetoothSettings() {
         startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
     }
@@ -230,6 +243,7 @@ class MainActivity : ComponentActivity(), BatteryBleClient.Listener {
         val controls = holdingControlState
         val text = buildString {
             appendLine("${getString(R.string.app_name)} · ${selectedDeviceName.ifBlank { selectedDevice?.name ?: "?" }}")
+            appendLine("version=${appVersion()}")
             appendLine("address=${selectedDevice?.address ?: "?"}")
             appendLine("status=$status")
             appendLine("updated=$lastUpdatedAt stale=$telemetryStale connected=$connected")
@@ -240,7 +254,7 @@ class MainActivity : ComponentActivity(), BatteryBleClient.Listener {
             appendLine("IREG41=${hex16(data.systemStateHigh)} IREG42=${hex16(data.systemStateLow)} IREG75=${hex16(data.inputRegister75Raw)} IREG76=${hex16(data.inputRegister76Raw)}")
             appendLine("IREG78_raw=${data.inputRegister78Raw ?: "?"} IREG8/9/10=${data.inputRegister8Raw}/${data.inputRegister9Raw}/${data.inputRegister10Raw}")
             appendLine("XT60_r8_W=${data.inputRegister8Raw / 10.0} DC_r9_doc_W=${data.inputRegister9Raw / 10.0} cigarette_r10_W=${data.inputRegister10Raw}")
-            appendLine("SOC=${data.stateOfChargePercent}% input=${data.totalInputWatts}W output=${data.totalOutputWatts}W")
+            appendLine("SOC=${data.stateOfChargePercent}% input=${data.totalInputWatts}W output=${data.totalOutputWatts}W net=${data.netPowerWatts}W")
             appendLine("INPUT REGISTERS")
             data.inputRegisters.forEachIndexed { index, value -> appendLine("IREG$index=${hex16(value)} ($value)") }
             appendLine("HOLDING REGISTERS")
@@ -252,6 +266,13 @@ class MainActivity : ComponentActivity(), BatteryBleClient.Listener {
     }
 
     private fun hex16(value: Int) = "0x${value.toString(16).uppercase().padStart(4, '0')}"
+
+    @Suppress("DEPRECATION")
+    private fun appVersion(): String {
+        val info = packageManager.getPackageInfo(packageName, 0)
+        val code = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.longVersionCode else info.versionCode.toLong()
+        return "${info.versionName ?: "?"} ($code)"
+    }
 
     override fun onScanStateChanged(scanning: Boolean) = onUi {
         val wasScanning = this.scanning

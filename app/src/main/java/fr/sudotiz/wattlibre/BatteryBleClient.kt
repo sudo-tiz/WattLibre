@@ -18,7 +18,6 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import java.io.ByteArrayOutputStream
-import java.util.Locale
 import java.util.UUID
 
 data class BatteryDevice(
@@ -36,6 +35,8 @@ data class GattReport(
     val serviceCount: Int,
     val characteristicCount: Int,
 )
+
+internal const val MAX_AUTO_REFRESH_SECONDS = 3_600
 
 internal class BatteryBleClient(
     context: Context,
@@ -62,7 +63,7 @@ internal class BatteryBleClient(
     private val context = context.applicationContext
     private val bluetoothManager = this.context.getSystemService(BluetoothManager::class.java)
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val foundAddresses = mutableSetOf<String>()
+    private val foundDevices = mutableMapOf<String, BatteryDevice>()
     private val responseBuffer = ByteArrayOutputStream()
     private var scanner: BluetoothLeScanner? = null
     private var gatt: BluetoothGatt? = null
@@ -77,20 +78,23 @@ internal class BatteryBleClient(
     private var connectionTimeout: Runnable? = null
     private var readTimeout: Runnable? = null
     private var pollTask: Runnable? = null
+    private var pollTaskAutomatic = false
     private var controlTimeout: Runnable? = null
     private var expectedDevice: BatteryDevice? = null
     private var reconnectTask: Runnable? = null
     private var reconnectDelayMs = 1_000L
     private var connectionLost = false
     private var telemetryStale = true
+    private var pollIntervalMs = DEFAULT_POLL_INTERVAL_MS
 
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
-            val name = result.scanRecord?.deviceName ?: runCatching { result.device.name }.getOrNull()
-            if (name.isNullOrBlank() || !isBatteryName(name)) return
-
+            val name = result.scanRecord?.deviceName?.takeIf(String::isNotBlank)
+                ?: runCatching { result.device.name?.takeIf(String::isNotBlank) }.getOrNull()
+                ?: message(R.string.device_unknown_name)
             val device = BatteryDevice(result.device, name, result.device.address, result.rssi)
-            if (foundAddresses.add(device.address)) listener.onDeviceFound(device)
+            val previous = foundDevices.put(device.address, device)
+            if (previous == null || previous.name != device.name || previous.rssi != device.rssi) listener.onDeviceFound(device)
         }
 
         override fun onScanFailed(errorCode: Int) {
@@ -207,7 +211,7 @@ internal class BatteryBleClient(
             return
         }
 
-        foundAddresses.clear()
+        foundDevices.clear()
         scanner = activeScanner
         try {
             activeScanner.startScan(
@@ -322,13 +326,23 @@ internal class BatteryBleClient(
             listener.onStatusChanged(message(R.string.ble_read_in_progress))
             return
         }
+        if (diagnosticPhase != DiagnosticPhase.NONE || queuedControl != null || controlAwaitingConfirmation != null || pollTask?.let { !pollTaskAutomatic } == true) {
+            listener.onStatusChanged(message(R.string.ble_wait_current))
+            return
+        }
         if (telemetryStale) {
             loseConnection(connection, message(R.string.ble_data_stale))
             return
         }
-        pollTask?.let(mainHandler::removeCallbacks)
-        pollTask = null
+        cancelAutomaticPoll()
         sendReadRequest(connection)
+    }
+
+    fun setPollIntervalSeconds(seconds: Int) {
+        pollIntervalMs = seconds.coerceIn(0, MAX_AUTO_REFRESH_SECONDS) * 1_000L
+        cancelAutomaticPoll()
+        if (readPending || diagnosticPhase != DiagnosticPhase.NONE || queuedControl != null || controlAwaitingConfirmation != null || pollTask != null) return
+        gatt?.takeIf { notificationsReady && !readPending }?.let(::schedulePoll)
     }
 
     fun readControlDiagnostics() {
@@ -337,17 +351,16 @@ internal class BatteryBleClient(
             listener.onStatusChanged(message(R.string.ble_not_ready))
             return
         }
-        if (readPending || diagnosticPhase != DiagnosticPhase.NONE || queuedControl != null || controlAwaitingConfirmation != null) {
+        if (readPending || diagnosticPhase != DiagnosticPhase.NONE || queuedControl != null || controlAwaitingConfirmation != null || pollTask?.let { !pollTaskAutomatic } == true) {
             listener.onStatusChanged(message(R.string.ble_wait_current))
             return
         }
-        pollTask?.let(mainHandler::removeCallbacks)
-        pollTask = null
+        cancelAutomaticPoll()
         diagnosticPhase = DiagnosticPhase.INPUT
         if (!sendReadRequest(connection)) {
             diagnosticPhase = DiagnosticPhase.NONE
             listener.onStatusChanged(message(R.string.ble_diagnostic_read_failed))
-            scheduleRead(connection, POLL_INTERVAL_MS)
+            schedulePoll(connection)
         }
     }
 
@@ -369,6 +382,10 @@ internal class BatteryBleClient(
             listener.onStatusChanged(message(R.string.ble_command_in_progress))
             return
         }
+        if (diagnosticPhase != DiagnosticPhase.NONE) {
+            listener.onStatusChanged(message(R.string.ble_wait_current))
+            return
+        }
         if (readPending) {
             queuedControl = request
             listener.onStatusChanged(message(R.string.ble_verify_before_command))
@@ -378,7 +395,7 @@ internal class BatteryBleClient(
         queuedControl = request
         pollTask?.let(mainHandler::removeCallbacks)
         pollTask = null
-        diagnosticPhase = DiagnosticPhase.NONE
+        pollTaskAutomatic = false
         if (!sendReadRequest(connection, holdingRegisters = true)) {
             queuedControl = null
             listener.onStatusChanged(message(R.string.ble_verify_failed))
@@ -503,11 +520,12 @@ internal class BatteryBleClient(
         readTimeout = null
         if (holdingResponse) {
             val state = BatteryProtocol.parseHoldingControlState(frame)
+            val diagnosticRead = diagnosticPhase == DiagnosticPhase.HOLDING
             diagnosticPhase = DiagnosticPhase.NONE
             if (state == null) {
                 listener.onStatusChanged(message(R.string.ble_holding_invalid))
                 queuedControl = null
-                scheduleRead(connection, POLL_INTERVAL_MS)
+                schedulePoll(connection)
                 return
             }
             listener.onHoldingControlState(state)
@@ -519,7 +537,7 @@ internal class BatteryBleClient(
                 val validValue = if (request.control == OutputControl.LIGHT) raw in 0..3 else raw in 0..1
                 if (!validValue) {
                     listener.onStatusChanged(message(R.string.ble_hreg_unexpected, request.control.register, raw))
-                    scheduleRead(connection, POLL_INTERVAL_MS)
+                    schedulePoll(connection)
                     return
                 }
                 val target = if (request.cycleLight) (raw + 1) % 4 else if (raw == 0) 1 else 0
@@ -532,7 +550,7 @@ internal class BatteryBleClient(
                     )
                 ) {
                     listener.onStatusChanged(message(R.string.ble_write_failed))
-                    scheduleRead(connection, POLL_INTERVAL_MS)
+                    schedulePoll(connection)
                     return
                 }
                 val sent = request.copy(cycleLight = false, expectedValue = target)
@@ -558,8 +576,8 @@ internal class BatteryBleClient(
                     if (state.rawValue(sent.control) == sent.expectedValue) message(R.string.ble_command_confirmed, controlLabel)
                     else message(R.string.ble_command_unconfirmed, controlLabel),
                 )
-            } ?: listener.onStatusChanged(message(R.string.ble_diagnostic_read_done))
-            scheduleRead(connection, POLL_INTERVAL_MS)
+            } ?: listener.onStatusChanged(message(if (diagnosticRead) R.string.ble_diagnostic_read_done else R.string.ble_measures_received))
+            schedulePoll(connection)
             return
         }
         val telemetry = BatteryProtocol.parseInputResponse(frame)
@@ -570,7 +588,7 @@ internal class BatteryBleClient(
             telemetryStale = true
             listener.onTelemetryStale(true)
             listener.onStatusChanged(if (controlNotSent) message(R.string.ble_state_unverified) else message(R.string.ble_bad_response))
-            scheduleRead(connection, POLL_INTERVAL_MS)
+            schedulePoll(connection)
             return
         }
 
@@ -595,8 +613,8 @@ internal class BatteryBleClient(
             scheduleRead(connection, CONTROL_CONFIRM_DELAY_MS, holdingRegisters = true)
             return
         }
-        listener.onStatusChanged(message(R.string.ble_measures_received))
-        scheduleRead(connection, POLL_INTERVAL_MS)
+        listener.onStatusChanged(message(R.string.ble_input_updated))
+        scheduleRead(connection, CONTROL_VERIFY_DELAY_MS, holdingRegisters = true)
     }
 
     private fun writeGattPayload(connection: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray): Boolean {
@@ -613,9 +631,26 @@ internal class BatteryBleClient(
         return writeGattCharacteristic(connection, characteristic, value, type)
     }
 
-    private fun scheduleRead(connection: BluetoothGatt, delayMs: Long, holdingRegisters: Boolean = false) {
+    private fun scheduleRead(connection: BluetoothGatt, delayMs: Long, holdingRegisters: Boolean = false, automaticPoll: Boolean = false) {
         pollTask?.let(mainHandler::removeCallbacks)
-        pollTask = Runnable { sendReadRequest(connection, holdingRegisters) }.also { mainHandler.postDelayed(it, delayMs) }
+        pollTaskAutomatic = automaticPoll
+        pollTask = Runnable {
+            pollTask = null
+            pollTaskAutomatic = false
+            sendReadRequest(connection, holdingRegisters)
+        }.also { mainHandler.postDelayed(it, delayMs) }
+    }
+
+    private fun schedulePoll(connection: BluetoothGatt) {
+        if (pollIntervalMs == 0L) return
+        scheduleRead(connection, pollIntervalMs, automaticPoll = true)
+    }
+
+    private fun cancelAutomaticPoll() {
+        if (!pollTaskAutomatic) return
+        pollTask?.let(mainHandler::removeCallbacks)
+        pollTask = null
+        pollTaskAutomatic = false
     }
 
     private fun writeDescriptor(
@@ -666,6 +701,7 @@ internal class BatteryBleClient(
         pollTask?.let(mainHandler::removeCallbacks)
         readTimeout = null
         pollTask = null
+        pollTaskAutomatic = false
         controlTimeout?.let(mainHandler::removeCallbacks)
         controlTimeout = null
         readPending = false
@@ -688,11 +724,6 @@ internal class BatteryBleClient(
         device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE, BluetoothDevice.PHY_LE_1M_MASK, mainHandler)
     }
 
-    private fun isBatteryName(name: String): Boolean {
-        val normalized = name.uppercase(Locale.ROOT)
-        return "FOSSIBOT" in normalized || "AFERIY" in normalized || "SYDPOWER" in normalized || "POWER" in normalized
-    }
-
     private fun message(id: Int, vararg args: Any) = context.getString(id, *args)
 
     private companion object {
@@ -704,7 +735,7 @@ internal class BatteryBleClient(
         const val READ_TIMEOUT_MS = 8_000L
         const val CONNECTION_TIMEOUT_MS = 15_000L
         const val MAX_RECONNECT_DELAY_MS = 30_000L
-        const val POLL_INTERVAL_MS = 5_000L
+        const val DEFAULT_POLL_INTERVAL_MS = 5_000L
         const val CONTROL_VERIFY_DELAY_MS = 300L
         const val CONTROL_CONFIRM_DELAY_MS = 1_000L
         const val CONTROL_CONFIRM_TIMEOUT_MS = 12_000L

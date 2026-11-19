@@ -21,9 +21,9 @@ Surveillez et contrôlez les stations électriques compatibles AFERIY, FOSSiBOT 
 
 Les captures montrent l’interface française. Les informations Bluetooth identifiantes sont masquées sur l’écran de connexion.
 
-| Vue d’ensemble | Connexion | Détails entrées/sorties | Diagnostic |
+| Vue d’ensemble | Appareil détecté | Détails entrées/sorties | Diagnostic |
 | --- | --- | --- | --- |
-| <img src="assets/screenshots/fr/01-overview.png" width="165" alt="Vue d’ensemble de la batterie"> | <img src="assets/screenshots/fr/02-connection.png" width="165" alt="Batterie connectée"> | <img src="assets/screenshots/fr/03-input-output.png" width="165" alt="Détails des entrées et sorties"> | <img src="assets/screenshots/fr/04-diagnostics.png" width="165" alt="Diagnostic"> |
+| <img src="fastlane/metadata/android/fr-FR/images/phoneScreenshots/phone-01.png" width="165" alt="Vue d’ensemble et puissance nette"> | <img src="fastlane/metadata/android/fr-FR/images/phoneScreenshots/phone-02.png" width="165" alt="Station détectée en Bluetooth"> | <img src="fastlane/metadata/android/fr-FR/images/phoneScreenshots/phone-03.png" width="165" alt="Détails des entrées et sorties"> | <img src="fastlane/metadata/android/fr-FR/images/phoneScreenshots/phone-04.png" width="165" alt="Diagnostic"> |
 
 ## Démarrage rapide
 

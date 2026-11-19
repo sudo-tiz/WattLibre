@@ -3,6 +3,7 @@ package fr.sudotiz.wattlibre
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -41,6 +43,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -50,6 +55,7 @@ private val Ink = Color(0xFF07111B)
 private val Panel = Color(0xFF101E2B)
 private val PanelRaised = Color(0xFF172838)
 private val Mint = Color(0xFF76E8BC)
+private val Discharge = Color(0xFFFF9E80)
 private val White = Color(0xFFF2F7F6)
 private val Muted = Color(0xFF9BAEB8)
 
@@ -68,10 +74,12 @@ internal fun WattLibreScreen(
     holdingControlState: HoldingControlState?,
     telemetryStale: Boolean,
     lastUpdatedAt: String?,
+    autoRefreshSeconds: Int,
     onScan: () -> Unit,
     onConnect: (BatteryDevice) -> Unit,
     onDisconnect: () -> Unit,
     onRefresh: () -> Unit,
+    onSetAutoRefreshSeconds: (Int) -> Unit,
     onControl: (OutputControl) -> Unit,
     onCycleLightMode: () -> Unit,
     onRenameDevice: (String) -> Unit,
@@ -109,8 +117,10 @@ internal fun WattLibreScreen(
                     holdingState = holdingControlState,
                     telemetryStale = telemetryStale,
                     lastUpdatedAt = lastUpdatedAt,
+                    autoRefreshSeconds = autoRefreshSeconds,
                     onBack = onDisconnect,
                     onRefresh = onRefresh,
+                    onSetAutoRefreshSeconds = onSetAutoRefreshSeconds,
                     onDisconnect = onDisconnect,
                     onControl = onControl,
                     onCycleLightMode = onCycleLightMode,
@@ -128,7 +138,6 @@ internal fun WattLibreScreen(
 @Composable
 private fun PageTitle(title: String, subtitle: String) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(stringResource(R.string.energy_brand), color = Mint, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.8.sp)
         Text(title, color = White, fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.6).sp)
         Text(subtitle, color = Muted, fontSize = 15.sp)
     }
@@ -193,8 +202,10 @@ private fun DeviceDetailsScreen(
     holdingState: HoldingControlState?,
     telemetryStale: Boolean,
     lastUpdatedAt: String?,
+    autoRefreshSeconds: Int,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
+    onSetAutoRefreshSeconds: (Int) -> Unit,
     onDisconnect: () -> Unit,
     onControl: (OutputControl) -> Unit,
     onCycleLightMode: () -> Unit,
@@ -217,23 +228,22 @@ private fun DeviceDetailsScreen(
             }
         }
         item {
-            DeviceTitle(
-                deviceName,
-                if (device.name == deviceName) stringResource(R.string.device_subtitle) else stringResource(R.string.device_bluetooth_name, device.name),
-            ) { editingName = true; draftName = deviceName }
+            val subtitle = if (device.name == deviceName) null else stringResource(R.string.device_bluetooth_name, device.name)
+            DeviceTitle(deviceName, subtitle) { editingName = true; draftName = deviceName }
         }
         if (bluetoothEnabled == false) item { BluetoothOffCard(onOpenBluetoothSettings) }
         item {
             ConnectionCard(
-                address = device.address,
                 connected = connected,
                 status = status,
+                autoRefreshSeconds = autoRefreshSeconds,
                 onDisconnect = onDisconnect,
                 onRefresh = onRefresh,
+                onSetAutoRefreshSeconds = onSetAutoRefreshSeconds,
             )
         }
         if (telemetry != null) {
-            item { TelemetryCard(telemetry, telemetryStale, lastUpdatedAt) }
+            item { TelemetryCard(telemetry, telemetryStale, lastUpdatedAt, autoRefreshSeconds) }
                 if (telemetry.expansionBattery1Percent != null || telemetry.expansionBattery2Percent != null) {
                     item {
                         MetricsSection(
@@ -288,14 +298,14 @@ private fun DeviceDetailsScreen(
 }
 
 @Composable
-private fun DeviceTitle(title: String, subtitle: String, onRename: () -> Unit) {
+private fun DeviceTitle(title: String, subtitle: String?, onRename: () -> Unit) {
+    val renameDescription = stringResource(R.string.rename_title)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(R.string.energy_brand), color = Mint, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.8.sp)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(title, color = White, fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.6).sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-            TextButton(onClick = onRename, contentPadding = PaddingValues(6.dp)) { Text("✏️", fontSize = 19.sp) }
+            TextButton(onClick = onRename, modifier = Modifier.semantics { contentDescription = renameDescription }, contentPadding = PaddingValues(6.dp)) { Text("✏️", fontSize = 19.sp) }
         }
-        Text(subtitle, color = Muted, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (subtitle != null) Text(subtitle, color = Muted, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -312,12 +322,15 @@ private fun BluetoothOffCard(onOpenSettings: () -> Unit) {
 
 @Composable
 private fun ConnectionCard(
-    address: String,
     connected: Boolean,
     status: String,
+    autoRefreshSeconds: Int,
     onDisconnect: () -> Unit,
     onRefresh: () -> Unit,
+    onSetAutoRefreshSeconds: (Int) -> Unit,
 ) {
+    var intervalText by remember(autoRefreshSeconds) { mutableStateOf(autoRefreshSeconds.toString()) }
+    val interval = intervalText.toIntOrNull()?.takeIf { it in 0..MAX_AUTO_REFRESH_SECONDS }
     Card(
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = Panel),
@@ -330,28 +343,68 @@ private fun ConnectionCard(
                         Text(stringResource(if (connected) R.string.status_connected else R.string.status_offline), color = if (connected) Mint else Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                     }
                 }
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text(address, color = Muted, fontSize = 12.sp)
-                Text(status, color = Muted, fontSize = 14.sp, lineHeight = 20.sp)
-            }
-
-            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                Button(
-                    onClick = onRefresh,
-                    modifier = Modifier.weight(1f).height(52.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = PanelRaised, contentColor = Mint),
-                ) { Text(stringResource(R.string.refresh), fontWeight = FontWeight.Bold) }
+                Spacer(Modifier.weight(1f))
                 Button(
                     onClick = onDisconnect,
-                    modifier = Modifier.weight(1f).height(52.dp),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = PanelRaised, contentColor = White),
+                    contentPadding = PaddingValues(horizontal = 13.dp, vertical = 8.dp),
                 ) { Text(stringResource(if (connected) R.string.disconnect else R.string.choose_another_device), fontWeight = FontWeight.Bold) }
             }
+
+            ConnectionStatus(status, Modifier.fillMaxWidth())
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = intervalText,
+                    onValueChange = { intervalText = it.filter { char -> char in '0'..'9' }.take(4) },
+                    modifier = Modifier.width(96.dp),
+                    label = { Text(stringResource(R.string.auto_refresh_label)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                )
+                Text(stringResource(R.string.auto_refresh_help), color = Muted, fontSize = 11.sp, lineHeight = 15.sp)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                Button(
+                    onClick = { interval?.let(onSetAutoRefreshSeconds) },
+                    enabled = interval != null && interval != autoRefreshSeconds,
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    shape = RoundedCornerShape(14.dp),
+                ) { Text(stringResource(R.string.auto_refresh_apply), fontSize = 13.sp) }
+                Button(
+                    onClick = onRefresh,
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PanelRaised, contentColor = Mint),
+                ) {
+                    Text("🔄 ${stringResource(R.string.refresh)}", fontSize = 13.sp, maxLines = 1)
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun ConnectionStatus(status: String, modifier: Modifier = Modifier) {
+    val emoji = statusEmoji(status)
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+        Text(emoji, fontSize = 22.sp)
+        Text(status, color = if (emoji == "⚠️") Color(0xFFFFB4AB) else Muted, fontSize = 13.sp, lineHeight = 18.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+private fun statusEmoji(message: String): String {
+    val status = message.lowercase()
+    return when {
+        listOf("bluetooth is off", "bluetooth désactivé", "failed", "failure", "échec", "impossible", "denied", "refus", "interrupted", "interrompue", "stale", "périmé", "invalid", "invalide", "no response", "aucune réponse", "timeout", "dépassé", "not confirmed", "unconfirmed", "non confirmé").any(status::contains) -> "⚠️"
+        listOf("reading", "read in progress", "lecture", "checking", "vérification", "préparation", "preparing").any(status::contains) -> "📡"
+        listOf("discover", "découverte").any(status::contains) -> "🔍"
+        listOf("connecting", "connection in progress", "connexion").any(status::contains) -> "🔌"
+        listOf("reconnect", "reconnexion").any(status::contains) -> "🔄"
+        listOf("updated", "actualis", "received", "reçu", "confirmed", "confirmé", "read without writes", "lu sans écriture").any(status::contains) -> "✅"
+        "notification" in status -> "🔔"
+        listOf("updates are off", "actualisation automatique désactivée").any(status::contains) -> "💤"
+        else -> "ℹ️"
     }
 }
 
@@ -402,9 +455,22 @@ private fun DeviceCard(device: BatteryDevice, displayName: String, onConnect: (B
 }
 
 @Composable
-private fun TelemetryCard(telemetry: BatteryTelemetry, stale: Boolean, lastUpdatedAt: String?) {
+private fun TelemetryCard(telemetry: BatteryTelemetry, stale: Boolean, lastUpdatedAt: String?, autoRefreshSeconds: Int) {
     var inputsExpanded by remember { mutableStateOf(false) }
     var outputsExpanded by remember { mutableStateOf(false) }
+    val netPower = telemetry.netPowerWatts
+    val flowColor = when {
+        netPower > 0 -> Mint
+        netPower < 0 -> Discharge
+        else -> Muted
+    }
+    val flowLabel = stringResource(
+        when {
+            netPower > 0 -> R.string.battery_charging
+            netPower < 0 -> R.string.battery_discharging
+            else -> R.string.battery_balanced
+        },
+    )
     val remaining = if (telemetry.minutesToEmpty > 0) formatDuration(telemetry.minutesToEmpty) else "—"
     val full = if (telemetry.minutesToFull > 0) formatDuration(telemetry.minutesToFull) else "—"
     Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Panel)) {
@@ -414,7 +480,9 @@ private fun TelemetryCard(telemetry: BatteryTelemetry, stale: Boolean, lastUpdat
                     Text(stringResource(R.string.battery_charge), color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
                     Text("${"%.1f".format(java.util.Locale.getDefault(), telemetry.stateOfChargePercent)}%", color = White, fontSize = 42.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1).sp)
                 }
-                Text(stringResource(R.string.soc), color = Mint, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 9.dp))
+                Surface(color = flowColor.copy(alpha = 0.13f), shape = CircleShape) {
+                    Text(flowLabel, color = flowColor, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp))
+                }
             }
             Box(
                 Modifier.fillMaxWidth().height(8.dp).background(PanelRaised, RoundedCornerShape(8.dp)),
@@ -424,10 +492,12 @@ private fun TelemetryCard(telemetry: BatteryTelemetry, stale: Boolean, lastUpdat
                         .height(8.dp).background(Mint, RoundedCornerShape(8.dp)),
                 )
             }
+            NetPowerCard(netPower, flowColor)
             Text(
                 when {
                     lastUpdatedAt == null -> stringResource(R.string.data_waiting)
                     stale -> stringResource(R.string.data_stale, lastUpdatedAt)
+                    autoRefreshSeconds == 0 -> stringResource(R.string.auto_refresh_off) + " · " + lastUpdatedAt
                     else -> stringResource(R.string.data_fresh, lastUpdatedAt)
                 },
                 color = if (stale) Color(0xFFFFB4AB) else Muted,
@@ -469,6 +539,22 @@ private fun TelemetryCard(telemetry: BatteryTelemetry, stale: Boolean, lastUpdat
                     stringResource(R.string.lighting_mode) to ledModeName(telemetry.ledMode),
                 ))
             }
+        }
+    }
+}
+
+@Composable
+private fun NetPowerCard(netPower: Int, color: Color) {
+    Surface(color = color.copy(alpha = 0.12f), shape = RoundedCornerShape(16.dp)) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(stringResource(R.string.net_power), color = color, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                Text(stringResource(R.string.net_power_explanation), color = Muted, fontSize = 12.sp)
+            }
+            Text(if (netPower > 0) "+$netPower W" else "$netPower W", color = color, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -526,11 +612,11 @@ private fun OutputControlsCard(
     onToggle: (OutputControl) -> Unit,
     onCycleLightMode: () -> Unit,
 ) {
-    fun state(control: OutputControl): Boolean? = holdingState?.let { it.isEnabled(control) } ?: when (control) {
-        OutputControl.USB -> telemetry?.usbEnabled
-        OutputControl.DC -> telemetry?.dcEnabled
-        OutputControl.AC -> telemetry?.acEnabled
-        OutputControl.LIGHT -> telemetry?.lightEnabled
+    fun state(control: OutputControl): Boolean? = when (control) {
+        OutputControl.USB -> holdingState?.let { it.isEnabled(control) } ?: telemetry?.usbEnabled
+        OutputControl.DC -> holdingState?.let { it.isEnabled(control) } ?: telemetry?.dcEnabled
+        OutputControl.AC -> holdingState?.let { it.isEnabled(control) } ?: telemetry?.acEnabled
+        OutputControl.LIGHT -> holdingState?.let { it.isEnabled(control) } ?: telemetry?.lightEnabled
     }
 
     Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Panel)) {
@@ -586,7 +672,11 @@ private fun DiagnosticsCard(
     Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Panel)) {
         Column(Modifier.fillMaxWidth()) {
             Row(
-                Modifier.fillMaxWidth().clickable(role = Role.Button) { expanded = !expanded }.padding(16.dp),
+                Modifier.fillMaxWidth().clickable(role = Role.Button) {
+                    val opening = !expanded
+                    expanded = opening
+                    if (opening) onRead()
+                }.padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -598,6 +688,20 @@ private fun DiagnosticsCard(
             }
             if (!expanded) return@Column
             Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(
+                    onClick = onRead,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PanelRaised, contentColor = Mint),
+                    enabled = connected,
+                ) { Text(stringResource(R.string.diagnostic_read_registers), fontWeight = FontWeight.Bold) }
+                Button(
+                    onClick = onCopy,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PanelRaised, contentColor = White),
+                    enabled = telemetry != null,
+                ) { Text(stringResource(R.string.diagnostic_copy), fontWeight = FontWeight.Bold) }
                 if (report != null && discoveryProblem) {
                     Text(stringResource(R.string.diagnostic_ble_discovery), color = White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     ReportRow(stringResource(R.string.diagnostic_battery_service), report.serviceFound)
@@ -641,20 +745,6 @@ private fun DiagnosticsCard(
                 } else {
                     Text(stringResource(R.string.diagnostic_holdings_not_read), color = Muted, fontSize = 12.sp)
                 }
-                Button(
-                    onClick = onRead,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = PanelRaised, contentColor = Mint),
-                    enabled = connected,
-                ) { Text(stringResource(R.string.diagnostic_read_registers), fontWeight = FontWeight.Bold) }
-                Button(
-                    onClick = onCopy,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = PanelRaised, contentColor = White),
-                    enabled = telemetry != null,
-                ) { Text(stringResource(R.string.diagnostic_copy), fontWeight = FontWeight.Bold) }
             }
         }
     }
