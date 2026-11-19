@@ -1,4 +1,4 @@
-package org.wattlibre.app
+package fr.sudotiz.wattlibre
 
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals

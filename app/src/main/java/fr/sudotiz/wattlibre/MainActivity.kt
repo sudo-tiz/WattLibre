@@ -1,4 +1,4 @@
-package org.wattlibre.app
+package fr.sudotiz.wattlibre
 
 import android.Manifest
 import android.bluetooth.BluetoothAdapter
@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity(), BatteryBleClient.Listener {
     private val devices = mutableStateListOf<BatteryDevice>()
     private var scanning by mutableStateOf(false)
     private var connected by mutableStateOf(false)
-    private var status by mutableStateOf("Recherchez une batterie à proximité.")
+    private var status by mutableStateOf("")
     private var selectedDevice by mutableStateOf<BatteryDevice?>(null)
     private var selectedDeviceName by mutableStateOf("")
     private val deviceNames = mutableStateMapOf<String, String>()
@@ -56,13 +56,14 @@ class MainActivity : ComponentActivity(), BatteryBleClient.Listener {
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { results ->
-        if (results.values.all { it }) scan() else status = "Autorisation Bluetooth nécessaire pour rechercher une batterie."
+        if (results.values.all { it }) scan() else status = getString(R.string.status_permission_bluetooth)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         bleClient = BatteryBleClient(this, this)
         bluetoothEnabled = readBluetoothState()
+        status = getString(R.string.status_initial)
 
         setContent {
             WattLibreScreen(
@@ -138,16 +139,16 @@ class MainActivity : ComponentActivity(), BatteryBleClient.Listener {
         val adapter = getSystemService(BluetoothManager::class.java)?.adapter
         if (adapter == null) {
             bluetoothEnabled = false
-            status = "Bluetooth LE indisponible sur cet appareil."
+            status = getString(R.string.status_bluetooth_unavailable)
             return
         }
         bluetoothEnabled = runCatching { adapter.isEnabled }.getOrNull()
         if (bluetoothEnabled != true) {
-            status = "Active le Bluetooth dans les réglages Android, puis réessaie."
+            status = getString(R.string.status_enable_bluetooth)
             return
         }
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.R && !isLocationEnabled()) {
-            status = "Active la localisation dans Android pour autoriser le scan BLE."
+            status = getString(R.string.status_enable_location)
             return
         }
 
@@ -194,7 +195,7 @@ class MainActivity : ComponentActivity(), BatteryBleClient.Listener {
         holdingControlState = null
         telemetryStale = true
         lastUpdatedAt = null
-        status = "Recherchez une batterie à proximité."
+        status = getString(R.string.status_initial)
     }
 
     private fun savedName(device: BatteryDevice): String =
@@ -223,12 +224,12 @@ class MainActivity : ComponentActivity(), BatteryBleClient.Listener {
 
     private fun copyDiagnostics() {
         val data = telemetry ?: run {
-            Toast.makeText(this, "Aucune télémétrie à copier.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.toast_nothing_to_copy, Toast.LENGTH_SHORT).show()
             return
         }
         val controls = holdingControlState
         val text = buildString {
-            appendLine("WattLibre · ${selectedDeviceName.ifBlank { selectedDevice?.name ?: "appareil inconnu" }}")
+            appendLine("${getString(R.string.app_name)} · ${selectedDeviceName.ifBlank { selectedDevice?.name ?: "?" }}")
             appendLine("address=${selectedDevice?.address ?: "?"}")
             appendLine("status=$status")
             appendLine("updated=$lastUpdatedAt stale=$telemetryStale connected=$connected")
@@ -246,8 +247,8 @@ class MainActivity : ComponentActivity(), BatteryBleClient.Listener {
             controls?.holdingRegisters?.forEachIndexed { index, value -> appendLine("HREG$index=${hex16(value)} ($value)") }
         }
         (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
-            .setPrimaryClip(ClipData.newPlainText("WattLibre diagnostic", text))
-        Toast.makeText(this, "Diagnostic copié dans le presse-papiers.", Toast.LENGTH_SHORT).show()
+            .setPrimaryClip(ClipData.newPlainText(getString(R.string.clipboard_title), text))
+        Toast.makeText(this, R.string.toast_copied, Toast.LENGTH_SHORT).show()
     }
 
     private fun hex16(value: Int) = "0x${value.toString(16).uppercase().padStart(4, '0')}"
@@ -256,7 +257,7 @@ class MainActivity : ComponentActivity(), BatteryBleClient.Listener {
         val wasScanning = this.scanning
         this.scanning = scanning
         if (wasScanning && !scanning && !connected) {
-            status = if (devices.isEmpty()) "Aucune batterie détectée." else "Scan terminé · ${devices.size} appareil(s) détecté(s)."
+            status = if (devices.isEmpty()) getString(R.string.status_no_battery) else getString(R.string.status_scan_finished, devices.size)
         }
     }
 

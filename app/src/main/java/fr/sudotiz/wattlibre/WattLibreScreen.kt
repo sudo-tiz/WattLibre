@@ -1,4 +1,4 @@
-package org.wattlibre.app
+package fr.sudotiz.wattlibre
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -38,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -127,7 +128,7 @@ internal fun WattLibreScreen(
 @Composable
 private fun PageTitle(title: String, subtitle: String) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("ÉNERGIE · EN LOCAL", color = Mint, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.8.sp)
+        Text(stringResource(R.string.energy_brand), color = Mint, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.8.sp)
         Text(title, color = White, fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.6).sp)
         Text(subtitle, color = Muted, fontSize = 15.sp)
     }
@@ -150,7 +151,7 @@ private fun DevicePickerScreen(
         contentPadding = PaddingValues(start = 20.dp, top = 24.dp, end = 20.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        item { PageTitle("Choisir une batterie", "WattLibre · contrôle local, sans cloud") }
+        item { PageTitle(stringResource(R.string.picker_title), stringResource(R.string.picker_subtitle)) }
         if (bluetoothEnabled == false) item { BluetoothOffCard(onOpenBluetoothSettings) }
         item {
             Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Panel)) {
@@ -162,13 +163,13 @@ private fun DevicePickerScreen(
                         modifier = Modifier.fillMaxWidth().height(52.dp),
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Mint, contentColor = Ink),
-                    ) { Text(if (scanning) "Arrêter la recherche" else "Rechercher une batterie", fontWeight = FontWeight.Bold) }
+                    ) { Text(stringResource(if (scanning) R.string.scan_stop else R.string.scan_start), fontWeight = FontWeight.Bold) }
                 }
             }
         }
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Appareils détectés", color = White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.devices_detected), color = White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.weight(1f))
                 Text(devices.size.toString().padStart(2, '0'), color = Muted, fontSize = 13.sp)
             }
@@ -212,13 +213,13 @@ private fun DeviceDetailsScreen(
     ) {
         item {
             Button(onClick = onBack, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)) {
-                Text("‹ Appareils")
+                Text(stringResource(R.string.back_devices))
             }
         }
         item {
             DeviceTitle(
                 deviceName,
-                if (device.name == deviceName) "Suivi local de la batterie" else "Nom Bluetooth : ${device.name}",
+                if (device.name == deviceName) stringResource(R.string.device_subtitle) else stringResource(R.string.device_bluetooth_name, device.name),
             ) { editingName = true; draftName = deviceName }
         }
         if (bluetoothEnabled == false) item { BluetoothOffCard(onOpenBluetoothSettings) }
@@ -233,13 +234,13 @@ private fun DeviceDetailsScreen(
         }
         if (telemetry != null) {
             item { TelemetryCard(telemetry, telemetryStale, lastUpdatedAt) }
-            if (telemetry.expansionBattery1Percent != null || telemetry.expansionBattery2Percent != null) {
-                item {
-                    MetricsSection(
-                        "Batteries d’extension",
-                        listOfNotNull(
-                            telemetry.expansionBattery1Percent?.let { "Extension 1" to formatTenths(it, "%") },
-                            telemetry.expansionBattery2Percent?.let { "Extension 2" to formatTenths(it, "%") },
+                if (telemetry.expansionBattery1Percent != null || telemetry.expansionBattery2Percent != null) {
+                    item {
+                        MetricsSection(
+                            stringResource(R.string.expansion_batteries),
+                            listOfNotNull(
+                                telemetry.expansionBattery1Percent?.let { stringResource(R.string.expansion_battery_number, 1) to formatTenths(it, "%") },
+                                telemetry.expansionBattery2Percent?.let { stringResource(R.string.expansion_battery_number, 2) to formatTenths(it, "%") },
                         ),
                     )
                 }
@@ -262,12 +263,12 @@ private fun DeviceDetailsScreen(
     if (editingName) {
         AlertDialog(
             onDismissRequest = { editingName = false },
-            title = { Text("Renommer l’appareil") },
+            title = { Text(stringResource(R.string.rename_title)) },
             text = {
                 OutlinedTextField(
                     value = draftName,
                     onValueChange = { draftName = it.take(40) },
-                    label = { Text("Nom affiché") },
+                    label = { Text(stringResource(R.string.rename_label)) },
                     singleLine = true,
                 )
             },
@@ -278,9 +279,9 @@ private fun DeviceDetailsScreen(
                         editingName = false
                     },
                     enabled = draftName.isNotBlank(),
-                ) { Text("Enregistrer") }
+                ) { Text(stringResource(R.string.save)) }
             },
-            dismissButton = { TextButton(onClick = { editingName = false }) { Text("Annuler") } },
+            dismissButton = { TextButton(onClick = { editingName = false }) { Text(stringResource(R.string.cancel)) } },
             containerColor = Panel,
         )
     }
@@ -289,7 +290,7 @@ private fun DeviceDetailsScreen(
 @Composable
 private fun DeviceTitle(title: String, subtitle: String, onRename: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("ÉNERGIE · EN LOCAL", color = Mint, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.8.sp)
+            Text(stringResource(R.string.energy_brand), color = Mint, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.8.sp)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(title, color = White, fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.6).sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             TextButton(onClick = onRename, contentPadding = PaddingValues(6.dp)) { Text("✏️", fontSize = 19.sp) }
@@ -302,9 +303,9 @@ private fun DeviceTitle(title: String, subtitle: String, onRename: () -> Unit) {
 private fun BluetoothOffCard(onOpenSettings: () -> Unit) {
     Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF351C20))) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Bluetooth désactivé", color = Color(0xFFFFB4AB), fontWeight = FontWeight.Bold)
-            Text("Active le Bluetooth pour rechercher ou reconnecter la batterie.", color = White, fontSize = 13.sp)
-            Button(onClick = onOpenSettings, shape = RoundedCornerShape(14.dp)) { Text("Ouvrir les réglages Bluetooth") }
+            Text(stringResource(R.string.bluetooth_disabled), color = Color(0xFFFFB4AB), fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.bluetooth_disabled_body), color = White, fontSize = 13.sp)
+            Button(onClick = onOpenSettings, shape = RoundedCornerShape(14.dp)) { Text(stringResource(R.string.open_bluetooth_settings)) }
         }
     }
 }
@@ -326,7 +327,7 @@ private fun ConnectionCard(
                 Surface(color = if (connected) Mint.copy(alpha = 0.16f) else PanelRaised, shape = CircleShape) {
                     Row(Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         Spacer(Modifier.size(7.dp).background(if (connected) Mint else Muted, CircleShape))
-                        Text(if (connected) "CONNECTÉ" else "HORS LIGNE", color = if (connected) Mint else Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                        Text(stringResource(if (connected) R.string.status_connected else R.string.status_offline), color = if (connected) Mint else Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                     }
                 }
             }
@@ -342,13 +343,13 @@ private fun ConnectionCard(
                     modifier = Modifier.weight(1f).height(52.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = PanelRaised, contentColor = Mint),
-                ) { Text("Actualiser", fontWeight = FontWeight.Bold) }
+                ) { Text(stringResource(R.string.refresh), fontWeight = FontWeight.Bold) }
                 Button(
                     onClick = onDisconnect,
                     modifier = Modifier.weight(1f).height(52.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = PanelRaised, contentColor = White),
-                ) { Text(if (connected) "Déconnecter" else "Changer d’appareil", fontWeight = FontWeight.Bold) }
+                ) { Text(stringResource(if (connected) R.string.disconnect else R.string.choose_another_device), fontWeight = FontWeight.Bold) }
             }
         }
     }
@@ -362,9 +363,9 @@ private fun EmptyDevicesCard(scanning: Boolean) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(if (scanning) "Recherche BLE en cours" else "Rien autour, pour l’instant", color = White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(if (scanning) R.string.scan_in_progress else R.string.scan_empty_title), color = White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             Text(
-                if (scanning) "Laisse la batterie allumée et à proximité." else "Lance un scan avec la batterie allumée, à proximité.",
+                stringResource(if (scanning) R.string.scan_empty_scanning_help else R.string.scan_empty_help),
                 color = Muted,
                 fontSize = 13.sp,
             )
@@ -394,7 +395,7 @@ private fun DeviceCard(device: BatteryDevice, displayName: String, onConnect: (B
                 shape = RoundedCornerShape(13.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = PanelRaised, contentColor = Mint),
             ) {
-                Text("Choisir", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.choose_device), fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -404,16 +405,16 @@ private fun DeviceCard(device: BatteryDevice, displayName: String, onConnect: (B
 private fun TelemetryCard(telemetry: BatteryTelemetry, stale: Boolean, lastUpdatedAt: String?) {
     var inputsExpanded by remember { mutableStateOf(false) }
     var outputsExpanded by remember { mutableStateOf(false) }
-    val remaining = telemetry.minutesToEmpty.takeIf { it > 0 }?.let(::formatDuration) ?: "—"
-    val full = telemetry.minutesToFull.takeIf { it > 0 }?.let(::formatDuration) ?: "—"
+    val remaining = if (telemetry.minutesToEmpty > 0) formatDuration(telemetry.minutesToEmpty) else "—"
+    val full = if (telemetry.minutesToFull > 0) formatDuration(telemetry.minutesToFull) else "—"
     Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Panel)) {
         Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text("CHARGE BATTERIE", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+                    Text(stringResource(R.string.battery_charge), color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
                     Text("${"%.1f".format(java.util.Locale.getDefault(), telemetry.stateOfChargePercent)}%", color = White, fontSize = 42.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1).sp)
                 }
-                Text("SOC", color = Mint, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 9.dp))
+                Text(stringResource(R.string.soc), color = Mint, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 9.dp))
             }
             Box(
                 Modifier.fillMaxWidth().height(8.dp).background(PanelRaised, RoundedCornerShape(8.dp)),
@@ -425,47 +426,47 @@ private fun TelemetryCard(telemetry: BatteryTelemetry, stale: Boolean, lastUpdat
             }
             Text(
                 when {
-                    lastUpdatedAt == null -> "En attente de la première mesure"
-                    stale -> "Données périmées · dernière lecture $lastUpdatedAt"
-                    else -> "Données à jour · $lastUpdatedAt"
+                    lastUpdatedAt == null -> stringResource(R.string.data_waiting)
+                    stale -> stringResource(R.string.data_stale, lastUpdatedAt)
+                    else -> stringResource(R.string.data_fresh, lastUpdatedAt)
                 },
                 color = if (stale) Color(0xFFFFB4AB) else Muted,
                 fontSize = 12.sp,
             )
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PowerMetric("ENTRÉE TOTALE", "${telemetry.totalInputWatts} W", Modifier.weight(1f))
-                    PowerMetric("SORTIE TOTALE", "${telemetry.totalOutputWatts} W", Modifier.weight(1f))
+                    PowerMetric(stringResource(R.string.metric_total_input), "${telemetry.totalInputWatts} W", Modifier.weight(1f))
+                    PowerMetric(stringResource(R.string.metric_total_output), "${telemetry.totalOutputWatts} W", Modifier.weight(1f))
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PowerMetric("AUTONOMIE ESTIMÉE", remaining, Modifier.weight(1f))
-                    PowerMetric("CHARGE COMPLÈTE", full, Modifier.weight(1f))
+                    PowerMetric(stringResource(R.string.metric_autonomy), remaining, Modifier.weight(1f))
+                    PowerMetric(stringResource(R.string.metric_full_charge), full, Modifier.weight(1f))
                 }
             }
-            ExpandableHeader("Entrées", inputsExpanded) { inputsExpanded = !inputsExpanded }
+            ExpandableHeader(stringResource(R.string.section_inputs), inputsExpanded) { inputsExpanded = !inputsExpanded }
             if (inputsExpanded) {
-                TelemetryCategory("AC", listOf(
-                    "Puissance de charge" to "${telemetry.acChargingWatts} W",
-                    "Tension" to formatTenths(telemetry.acInputVoltage, "V"),
-                    "Fréquence" to formatHundredths(telemetry.acInputFrequency, "Hz"),
+                TelemetryCategory(stringResource(R.string.category_ac), listOf(
+                    stringResource(R.string.metric_charging_power) to "${telemetry.acChargingWatts} W",
+                    stringResource(R.string.metric_voltage) to formatTenths(telemetry.acInputVoltage, "V"),
+                    stringResource(R.string.metric_frequency) to formatHundredths(telemetry.acInputFrequency, "Hz"),
                 ))
-                TelemetryCategory("DC", listOf("Puissance d’entrée" to "${telemetry.dcInputWatts} W"))
+                TelemetryCategory(stringResource(R.string.category_dc), listOf(stringResource(R.string.metric_input_power) to "${telemetry.dcInputWatts} W"))
             }
-            ExpandableHeader("Sorties", outputsExpanded) { outputsExpanded = !outputsExpanded }
+            ExpandableHeader(stringResource(R.string.section_outputs), outputsExpanded) { outputsExpanded = !outputsExpanded }
             if (outputsExpanded) {
-                TelemetryCategory("AC", listOf(
-                    "Puissance" to "${telemetry.acOutputWatts} W",
-                    "Tension" to formatTenths(telemetry.acOutputVoltage, "V"),
-                    "Fréquence" to formatTenths(telemetry.acOutputFrequency, "Hz"),
+                TelemetryCategory(stringResource(R.string.category_ac), listOf(
+                    stringResource(R.string.metric_output_power) to "${telemetry.acOutputWatts} W",
+                    stringResource(R.string.metric_voltage) to formatTenths(telemetry.acOutputVoltage, "V"),
+                    stringResource(R.string.metric_frequency) to formatTenths(telemetry.acOutputFrequency, "Hz"),
                 ))
-                TelemetryCategory("DC", listOf(
-                    "XT60" to formatTenths(telemetry.inputRegister8Raw / 10f, "W"),
-                    "Prise voiture" to "${telemetry.inputRegister10Raw} W",
+                TelemetryCategory(stringResource(R.string.category_dc), listOf(
+                    stringResource(R.string.metric_xt60) to formatTenths(telemetry.inputRegister8Raw / 10f, "W"),
+                    stringResource(R.string.metric_car_socket) to "${telemetry.inputRegister10Raw} W",
                 ))
-                TelemetryCategory("USB", telemetry.usbOutputWatts.mapIndexed { index, watts -> "Port ${index + 1}" to formatWatts(watts) })
-                TelemetryCategory("Éclairage", listOf(
-                    "Puissance" to formatWatts(telemetry.ledWatts),
-                    "Mode" to ledModeName(telemetry.ledMode),
+                TelemetryCategory(stringResource(R.string.category_usb), telemetry.usbOutputWatts.mapIndexed { index, watts -> stringResource(R.string.usb_port, index + 1) to formatWatts(watts) })
+                TelemetryCategory(stringResource(R.string.category_lighting), listOf(
+                    stringResource(R.string.metric_output_power) to formatWatts(telemetry.ledWatts),
+                    stringResource(R.string.lighting_mode) to ledModeName(telemetry.ledMode),
                 ))
             }
         }
@@ -481,7 +482,7 @@ private fun ExpandableHeader(title: String, expanded: Boolean, onClick: () -> Un
     ) {
         Text(title, color = White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.weight(1f))
-        Text(if (expanded) "Masquer  ⌃" else "Afficher  ⌄", color = Mint, fontSize = 12.sp)
+        Text(stringResource(if (expanded) R.string.hide_details else R.string.show_details), color = Mint, fontSize = 12.sp)
     }
 }
 
@@ -511,7 +512,12 @@ private fun PowerMetric(label: String, value: String, modifier: Modifier = Modif
     }
 }
 
-private fun formatDuration(minutes: Int) = if (minutes < 60) "$minutes min" else "${minutes / 60} h ${minutes % 60} min"
+@Composable
+private fun formatDuration(minutes: Int) = if (minutes < 60) {
+    stringResource(R.string.duration_minutes, minutes)
+} else {
+    stringResource(R.string.duration_hours_minutes, minutes / 60, minutes % 60)
+}
 
 @Composable
 private fun OutputControlsCard(
@@ -529,7 +535,7 @@ private fun OutputControlsCard(
 
     Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Panel)) {
         Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-            Text("Sorties", color = White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.controls_outputs), color = White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                 OutputButton(OutputControl.USB, state(OutputControl.USB), onToggle, Modifier.weight(1f))
                 OutputButton(OutputControl.DC, state(OutputControl.DC), onToggle, Modifier.weight(1f))
@@ -554,8 +560,8 @@ private fun LightModeButton(mode: Int?, onClick: () -> Unit, modifier: Modifier 
         ),
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text("Mode éclairage", fontWeight = FontWeight.Bold)
-            Text(mode?.let(::ledModeName) ?: "État inconnu", fontSize = 11.sp)
+            Text(stringResource(R.string.lighting_mode), fontWeight = FontWeight.Bold)
+            Text(if (mode == null) stringResource(R.string.state_unknown) else ledModeName(mode), fontSize = 11.sp)
         }
     }
 }
@@ -585,55 +591,55 @@ private fun DiagnosticsCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text("Diagnostic", color = White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    if (discoveryProblem) Text("Problème de découverte BLE", color = Color(0xFFFFB4AB), fontSize = 12.sp)
+                    Text(stringResource(R.string.diagnostic), color = White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    if (discoveryProblem) Text(stringResource(R.string.diagnostic_ble_problem), color = Color(0xFFFFB4AB), fontSize = 12.sp)
                 }
-                Text(if (expanded) "Masquer  ⌃" else "Afficher  ⌄", color = Mint, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                Text(stringResource(if (expanded) R.string.hide_details else R.string.show_details), color = Mint, fontSize = 12.sp, fontWeight = FontWeight.Medium)
             }
             if (!expanded) return@Column
             Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (report != null && discoveryProblem) {
-                    Text("Découverte BLE", color = White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                    ReportRow("Service batterie", report.serviceFound)
-                    ReportRow("Caractéristique d’écriture", report.writeCharacteristicFound)
-                    ReportRow("Caractéristique de notification", report.notifyCharacteristicFound)
-                    ReportRow("Descripteur de notification", report.notifyDescriptorFound)
-                    Text("${report.serviceCount} service(s) · ${report.characteristicCount} caractéristique(s) examinés", color = Muted, fontSize = 12.sp)
+                    Text(stringResource(R.string.diagnostic_ble_discovery), color = White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    ReportRow(stringResource(R.string.diagnostic_battery_service), report.serviceFound)
+                    ReportRow(stringResource(R.string.diagnostic_write_characteristic), report.writeCharacteristicFound)
+                    ReportRow(stringResource(R.string.diagnostic_notify_characteristic), report.notifyCharacteristicFound)
+                    ReportRow(stringResource(R.string.diagnostic_notify_descriptor), report.notifyDescriptorFound)
+                    Text(stringResource(R.string.diagnostic_examined, report.serviceCount, report.characteristicCount), color = Muted, fontSize = 12.sp)
                 }
-                DiagnosticRow("Connexion", if (connected) "Connecté" else "Interrompue / hors ligne")
-                DiagnosticRow("Dernière télémétrie", lastUpdatedAt ?: "Jamais reçue")
-                DiagnosticRow("Fraîcheur", if (telemetryStale) "Périmée" else "À jour")
+                DiagnosticRow(stringResource(R.string.diagnostic_connection), stringResource(if (connected) R.string.diagnostic_connected else R.string.diagnostic_disconnected))
+                DiagnosticRow(stringResource(R.string.diagnostic_last_telemetry), lastUpdatedAt ?: stringResource(R.string.diagnostic_never_received))
+                DiagnosticRow(stringResource(R.string.diagnostic_freshness), stringResource(if (telemetryStale) R.string.diagnostic_stale else R.string.diagnostic_up_to_date))
                 if (telemetry != null) {
-                    Text("Mesures décodées", color = White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                    DiagnosticRow("Charge", formatTenths(telemetry.stateOfChargePercent, "%"))
-                    DiagnosticRow("Puissance totale entrée / sortie", "${telemetry.totalInputWatts} / ${telemetry.totalOutputWatts} W")
-                    DiagnosticRow("Entrée AC / DC", "${telemetry.acChargingWatts} / ${telemetry.dcInputWatts} W")
-                    DiagnosticRow("Sortie AC / XT60 / voiture", "${telemetry.acOutputWatts} / ${formatTenths(telemetry.inputRegister8Raw / 10f, "W")} / ${telemetry.inputRegister10Raw} W")
-                    DiagnosticRow("Mode éclairage", ledModeName(telemetry.ledMode))
-                    DiagnosticRow("Tension / fréquence AC sortie", "${formatTenths(telemetry.acOutputVoltage, "V")} / ${formatTenths(telemetry.acOutputFrequency, "Hz")}")
-                    DiagnosticRow("Tension / fréquence AC entrée", "${formatTenths(telemetry.acInputVoltage, "V")} / ${formatHundredths(telemetry.acInputFrequency, "Hz")}")
-                    DiagnosticRow("Autonomie / charge complète", "${telemetry.minutesToEmpty} / ${telemetry.minutesToFull} min")
-                    DiagnosticRow("État convertisseur DC", if (telemetry.dcConverterActive) "Actif" else "Arrêté")
-                    Text("État du DC", color = White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                    Text("HREG25 et input 41 bit 10 suivent le maître ; le bit 7 indique le convertisseur, pas l’état individuel XT60.", color = Muted, fontSize = 12.sp)
-                    DiagnosticRow("HREG25 · DC maître", holdingState?.dc?.toString() ?: "Non lu")
-                    DiagnosticRow("HREG5", holdingState?.holding5Raw?.let(::formatHex) ?: "Non lu")
-                    DiagnosticRow("HREG11", holdingState?.holding11Raw?.let(::formatHex) ?: "Non lu")
-                    DiagnosticRow("HREG30 / 31 / 32", holdingState?.let { "${it.holding30Raw} / ${it.holding31Raw} / ${it.holding32Raw}" } ?: "Non lu")
-                    DiagnosticRow("IREG41 / 42", "${formatHex(telemetry.systemStateHigh)} / ${formatHex(telemetry.systemStateLow)}")
-                    DiagnosticRow("IREG8 / 9 / 10", "${telemetry.inputRegister8Raw} / ${telemetry.inputRegister9Raw} / ${telemetry.inputRegister10Raw}")
-                    DiagnosticRow("IREG75 / 76", "${formatHex(telemetry.inputRegister75Raw)} / ${formatHex(telemetry.inputRegister76Raw)}")
-                    DiagnosticRow("IREG78", telemetry.inputRegister78Raw?.toString() ?: "Non disponible")
-                    DiagnosticRow("Maître DC", if (telemetry.dcEnabled) "Actif" else "Arrêté")
-                    DiagnosticRow("Convertisseur DC", if (telemetry.dcConverterActive) "Actif" else "Arrêté")
-                    RegisterDump("Registres d’entrée · ${telemetry.inputRegisters.size}", "I", telemetry.inputRegisters)
+                    Text(stringResource(R.string.diagnostic_decoded_measurements), color = White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    DiagnosticRow(stringResource(R.string.diagnostic_charge), formatTenths(telemetry.stateOfChargePercent, "%"))
+                    DiagnosticRow(stringResource(R.string.diagnostic_total_power), "${telemetry.totalInputWatts} / ${telemetry.totalOutputWatts} W")
+                    DiagnosticRow(stringResource(R.string.diagnostic_ac_dc_input), "${telemetry.acChargingWatts} / ${telemetry.dcInputWatts} W")
+                    DiagnosticRow(stringResource(R.string.diagnostic_output_ports), "${telemetry.acOutputWatts} / ${formatTenths(telemetry.inputRegister8Raw / 10f, "W")} / ${telemetry.inputRegister10Raw} W")
+                    DiagnosticRow(stringResource(R.string.lighting_mode), ledModeName(telemetry.ledMode))
+                    DiagnosticRow(stringResource(R.string.diagnostic_voltage_frequency_output), "${formatTenths(telemetry.acOutputVoltage, "V")} / ${formatTenths(telemetry.acOutputFrequency, "Hz")}")
+                    DiagnosticRow(stringResource(R.string.diagnostic_voltage_frequency_input), "${formatTenths(telemetry.acInputVoltage, "V")} / ${formatHundredths(telemetry.acInputFrequency, "Hz")}")
+                    DiagnosticRow(stringResource(R.string.diagnostic_runtime_full), "${telemetry.minutesToEmpty} / ${telemetry.minutesToFull} min")
+                    DiagnosticRow(stringResource(R.string.diagnostic_dc_converter), stringResource(if (telemetry.dcConverterActive) R.string.state_active else R.string.state_stopped))
+                    Text(stringResource(R.string.diagnostic_dc_state), color = White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.diagnostic_dc_explanation), color = Muted, fontSize = 12.sp)
+                    DiagnosticRow(stringResource(R.string.diagnostic_dc_master), holdingState?.dc?.toString() ?: stringResource(R.string.diagnostic_not_read))
+                    DiagnosticRow(stringResource(R.string.diagnostic_hreg5), holdingState?.holding5Raw?.let(::formatHex) ?: stringResource(R.string.diagnostic_not_read))
+                    DiagnosticRow(stringResource(R.string.diagnostic_hreg11), holdingState?.holding11Raw?.let(::formatHex) ?: stringResource(R.string.diagnostic_not_read))
+                    DiagnosticRow(stringResource(R.string.diagnostic_hregs_30_32), holdingState?.let { "${it.holding30Raw} / ${it.holding31Raw} / ${it.holding32Raw}" } ?: stringResource(R.string.diagnostic_not_read))
+                    DiagnosticRow(stringResource(R.string.diagnostic_iregs_41_42), "${formatHex(telemetry.systemStateHigh)} / ${formatHex(telemetry.systemStateLow)}")
+                    DiagnosticRow(stringResource(R.string.diagnostic_iregs_8_10), "${telemetry.inputRegister8Raw} / ${telemetry.inputRegister9Raw} / ${telemetry.inputRegister10Raw}")
+                    DiagnosticRow(stringResource(R.string.diagnostic_iregs_75_76), "${formatHex(telemetry.inputRegister75Raw)} / ${formatHex(telemetry.inputRegister76Raw)}")
+                    DiagnosticRow(stringResource(R.string.diagnostic_ireg78), telemetry.inputRegister78Raw?.toString() ?: stringResource(R.string.diagnostic_not_available))
+                    DiagnosticRow(stringResource(R.string.diagnostic_master), stringResource(if (telemetry.dcEnabled) R.string.state_active else R.string.state_stopped))
+                    DiagnosticRow(stringResource(R.string.diagnostic_converter), stringResource(if (telemetry.dcConverterActive) R.string.state_active else R.string.state_stopped))
+                    RegisterDump(stringResource(R.string.diagnostic_inputs_title, telemetry.inputRegisters.size), "I", telemetry.inputRegisters)
                 } else {
-                    Text("Les mesures apparaîtront ici après connexion.", color = Muted, fontSize = 12.sp)
+                    Text(stringResource(R.string.diagnostic_waiting), color = Muted, fontSize = 12.sp)
                 }
                 if (holdingState?.holdingRegisters?.isNotEmpty() == true) {
-                    RegisterDump("Holding registers · ${holdingState.holdingRegisters.size}", "H", holdingState.holdingRegisters)
+                    RegisterDump(stringResource(R.string.diagnostic_holdings_title, holdingState.holdingRegisters.size), "H", holdingState.holdingRegisters)
                 } else {
-                    Text("Holding registers : pas encore lus.", color = Muted, fontSize = 12.sp)
+                    Text(stringResource(R.string.diagnostic_holdings_not_read), color = Muted, fontSize = 12.sp)
                 }
                 Button(
                     onClick = onRead,
@@ -641,14 +647,14 @@ private fun DiagnosticsCard(
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = PanelRaised, contentColor = Mint),
                     enabled = connected,
-                ) { Text("Lire les registres", fontWeight = FontWeight.Bold) }
+                ) { Text(stringResource(R.string.diagnostic_read_registers), fontWeight = FontWeight.Bold) }
                 Button(
                     onClick = onCopy,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = PanelRaised, contentColor = White),
                     enabled = telemetry != null,
-                ) { Text("Copier le diagnostic", fontWeight = FontWeight.Bold) }
+                ) { Text(stringResource(R.string.diagnostic_copy), fontWeight = FontWeight.Bold) }
             }
         }
     }
@@ -693,8 +699,8 @@ private fun OutputButton(
         ),
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(control.label, fontWeight = FontWeight.Bold)
-            Text(if (enabled == null) "État inconnu" else if (enabled) "Actif" else "Arrêté", fontSize = 11.sp)
+            Text(stringResource(control.labelRes), fontWeight = FontWeight.Bold)
+            Text(stringResource(if (enabled == null) R.string.state_unknown else if (enabled) R.string.state_active else R.string.state_stopped), fontSize = 11.sp)
         }
     }
 }
@@ -717,12 +723,13 @@ private fun MetricsSection(title: String, rows: List<Pair<String, String>>) {
 private fun formatWatts(value: Float) = "${"%.1f".format(java.util.Locale.getDefault(), value)} W"
 private fun formatTenths(value: Float, unit: String) = "${"%.1f".format(java.util.Locale.getDefault(), value)} $unit"
 private fun formatHundredths(value: Float, unit: String) = "${"%.2f".format(java.util.Locale.getDefault(), value)} $unit"
+@Composable
 private fun ledModeName(mode: Int) = when (mode) {
-    0 -> "Éteint"
-    1 -> "Allumé"
-    2 -> "SOS"
-    3 -> "Clignotant"
-    else -> "Inconnu ($mode)"
+    0 -> stringResource(R.string.mode_off)
+    1 -> stringResource(R.string.mode_on)
+    2 -> stringResource(R.string.mode_sos)
+    3 -> stringResource(R.string.mode_flash)
+    else -> stringResource(R.string.mode_unknown, mode)
 }
 
 @Composable
@@ -730,7 +737,7 @@ private fun ReportRow(label: String, found: Boolean) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(label, color = Muted, fontSize = 13.sp)
         Spacer(Modifier.weight(1f))
-        Text(if (found) "Trouvé" else "Absent", color = if (found) Mint else Muted, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        Text(stringResource(if (found) R.string.report_found else R.string.report_missing), color = if (found) Mint else Muted, fontSize = 13.sp, fontWeight = FontWeight.Medium)
     }
 }
 

@@ -3,12 +3,20 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val releaseKeyPath = System.getenv("KEYSTORE_FILE") ?: "my-release-key.jks"
+val releaseKeyFile = file(releaseKeyPath)
+val releaseStorePassword = System.getenv("KEYSTORE_PASSWORD")
+val releaseKeyAlias = System.getenv("KEY_ALIAS")
+val releaseKeyPassword = System.getenv("KEY_PASSWORD")
+val releaseSigningAvailable = releaseKeyFile.isFile &&
+    releaseStorePassword != null && releaseKeyAlias != null && releaseKeyPassword != null
+
 android {
-    namespace = "org.wattlibre.app"
+    namespace = "fr.sudotiz.wattlibre"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "org.wattlibre.app"
+        applicationId = "fr.sudotiz.wattlibre"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
@@ -17,6 +25,27 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    signingConfigs {
+        if (releaseSigningAvailable) create("release") {
+            storeFile = releaseKeyFile
+            storeType = "JKS"
+            storePassword = requireNotNull(releaseStorePassword)
+            keyAlias = requireNotNull(releaseKeyAlias)
+            keyPassword = requireNotNull(releaseKeyPassword)
+        }
+    }
+
+    buildTypes {
+        release {
+            if (releaseSigningAvailable) signingConfig = signingConfigs.getByName("release")
+        }
+    }
+
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
     }
 
     compileOptions {

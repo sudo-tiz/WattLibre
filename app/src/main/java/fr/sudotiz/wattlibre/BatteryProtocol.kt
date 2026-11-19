@@ -1,4 +1,4 @@
-package org.wattlibre.app
+package fr.sudotiz.wattlibre
 
 data class BatteryTelemetry(
     val stateOfChargePercent: Float,
@@ -48,11 +48,11 @@ data class HoldingControlState(
     val holdingRegisters: List<Int> = emptyList(),
 )
 
-enum class OutputControl(val register: Int, val label: String) {
-    USB(24, "USB"),
-    DC(25, "DC maître"),
-    AC(26, "AC"),
-    LIGHT(27, "Éclairage"),
+enum class OutputControl(val register: Int, val labelRes: Int) {
+    USB(24, R.string.control_usb),
+    DC(25, R.string.control_dc),
+    AC(26, R.string.control_ac),
+    LIGHT(27, R.string.control_lighting),
 }
 
 fun HoldingControlState.rawValue(control: OutputControl) = when (control) {

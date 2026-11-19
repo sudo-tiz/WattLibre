@@ -3,3 +3,7 @@ local.properties
 **/build/
 captures/
 .idea/
+*.jks
+*.keystore
+*.p12
+*.pfx

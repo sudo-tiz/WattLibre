@@ -1,4 +1,4 @@
-package org.wattlibre.app
+package fr.sudotiz.wattlibre
 
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
@@ -95,7 +95,7 @@ internal class BatteryBleClient(
 
         override fun onScanFailed(errorCode: Int) {
             stopScan()
-            listener.onStatusChanged("Échec du scan Bluetooth ($errorCode).")
+            listener.onStatusChanged(message(R.string.ble_scan_failed, errorCode))
         }
     }
 
@@ -104,16 +104,16 @@ internal class BatteryBleClient(
             if (this@BatteryBleClient.gatt !== gatt) return
             when {
                 status != BluetoothGatt.GATT_SUCCESS -> {
-                    loseConnection(gatt, "Connexion BLE interrompue ($status).")
+                    loseConnection(gatt, message(R.string.ble_interrupted_code, status))
                 }
                 newState == BluetoothProfile.STATE_CONNECTED -> {
                     connectionLost = false
                     listener.onConnectionChanged(true)
-                    listener.onStatusChanged("Connecté. Découverte des caractéristiques…")
-                    if (!gatt.discoverServices()) loseConnection(gatt, "Impossible de découvrir les services BLE.")
+                    listener.onStatusChanged(message(R.string.ble_connected_discovering))
+                    if (!gatt.discoverServices()) loseConnection(gatt, message(R.string.ble_services_failed))
                 }
                 newState == BluetoothProfile.STATE_DISCONNECTED -> {
-                    loseConnection(gatt, "Connexion interrompue.")
+                    loseConnection(gatt, message(R.string.ble_interrupted))
                 }
             }
         }
@@ -122,7 +122,7 @@ internal class BatteryBleClient(
             if (this@BatteryBleClient.gatt !== gatt) return
             if (status != BluetoothGatt.GATT_SUCCESS) {
                 listener.onGattReport(GattReport(false, false, false, false, gatt.services.size, 0))
-                loseConnection(gatt, "Échec de la découverte GATT ($status).")
+                loseConnection(gatt, message(R.string.ble_discovery_failed, status))
                 return
             }
 
@@ -142,11 +142,11 @@ internal class BatteryBleClient(
                 ),
             )
             if (write == null || notify == null || cccd == null) {
-                loseConnection(gatt, "Caractéristiques BLE incomplètes.")
+                loseConnection(gatt, message(R.string.ble_characteristics_incomplete))
                 return
             }
             if (!gatt.setCharacteristicNotification(notify, true)) {
-                loseConnection(gatt, "Impossible d’activer les notifications BLE.")
+                loseConnection(gatt, message(R.string.ble_notifications_failed))
                 return
             }
 
@@ -154,33 +154,33 @@ internal class BatteryBleClient(
                 (notify.properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0 -> BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                 (notify.properties and BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0 -> BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
                 else -> {
-                    loseConnection(gatt, "La caractéristique ne prend pas en charge les notifications.")
+                    loseConnection(gatt, message(R.string.ble_notifications_unsupported))
                     return
                 }
             }
             writeCharacteristic = write
             if (!writeDescriptor(gatt, cccd, cccdValue)) {
-                loseConnection(gatt, "Impossible d’activer les notifications de la batterie.")
+                loseConnection(gatt, message(R.string.ble_notifications_failed))
             } else {
-                listener.onStatusChanged("Activation des notifications BLE…")
+                listener.onStatusChanged(message(R.string.ble_notifications_enabling))
             }
         }
 
         override fun onDescriptorWrite(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
             if (this@BatteryBleClient.gatt !== gatt || descriptor.uuid != CCCD_UUID) return
             if (status != BluetoothGatt.GATT_SUCCESS) {
-                loseConnection(gatt, "Échec de l’activation des notifications ($status).")
+                loseConnection(gatt, message(R.string.ble_descriptor_failed, status))
                 return
             }
             reconnectDelayMs = 1_000L
             notificationsReady = true
-            listener.onStatusChanged("Notifications activées ; préparation de la lecture…")
+            listener.onStatusChanged(message(R.string.ble_notifications_ready))
             if (!gatt.requestMtu(247)) sendReadRequest(gatt)
         }
 
         override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
             if (this@BatteryBleClient.gatt !== gatt || !notificationsReady) return
-            listener.onStatusChanged("MTU BLE : $mtu octets.")
+            listener.onStatusChanged(message(R.string.ble_mtu, mtu))
             sendReadRequest(gatt)
         }
 
@@ -203,7 +203,7 @@ internal class BatteryBleClient(
         val bluetoothAdapter = bluetoothManager.adapter
         val activeScanner = bluetoothAdapter?.bluetoothLeScanner
         if (activeScanner == null) {
-            listener.onStatusChanged("Bluetooth LE indisponible sur cet appareil.")
+            listener.onStatusChanged(message(R.string.status_bluetooth_unavailable))
             return
         }
 
@@ -216,12 +216,12 @@ internal class BatteryBleClient(
                 scanCallback,
             )
             listener.onScanStateChanged(true)
-            listener.onStatusChanged("Recherche des batteries à proximité…")
+            listener.onStatusChanged(message(R.string.ble_scan_search))
             scanTimeout = Runnable { stopScan() }.also { mainHandler.postDelayed(it, SCAN_DURATION_MS) }
         } catch (_: SecurityException) {
             scanner = null
             listener.onScanStateChanged(false)
-            listener.onStatusChanged("Permission Bluetooth refusée.")
+            listener.onStatusChanged(message(R.string.ble_permission_denied))
         }
     }
 
@@ -248,21 +248,21 @@ internal class BatteryBleClient(
         writeCharacteristic = null
         notificationsReady = false
         listener.onConnectionChanged(false)
-        listener.onStatusChanged("Connexion à ${device.name}…")
+        listener.onStatusChanged(message(R.string.ble_connecting, device.name))
         try {
             gatt = openGatt(device.device)
             if (gatt == null) {
-                listener.onStatusChanged("Impossible d’ouvrir la connexion BLE.")
+                listener.onStatusChanged(message(R.string.ble_open_failed))
                 scheduleReconnect()
             } else {
                 connectionTimeout = Runnable {
                     gatt?.takeIf { expectedDevice?.address == device.address }?.let {
-                        loseConnection(it, "Délai de connexion dépassé.")
+                        loseConnection(it, message(R.string.ble_connect_timeout))
                     }
                 }.also { mainHandler.postDelayed(it, CONNECTION_TIMEOUT_MS) }
             }
         } catch (_: SecurityException) {
-            listener.onStatusChanged("Permission Bluetooth refusée.")
+            listener.onStatusChanged(message(R.string.ble_permission_denied))
         }
     }
 
@@ -297,7 +297,7 @@ internal class BatteryBleClient(
             telemetryStale = true
             listener.onConnectionChanged(false)
             listener.onTelemetryStale(true)
-            listener.onStatusChanged("Bluetooth désactivé. Active-le pour reprendre la connexion.")
+            listener.onStatusChanged(message(R.string.ble_bluetooth_off_reconnect))
         } else if (expectedDevice != null && gatt == null) {
             scheduleReconnect(delayMs = 0L)
         }
@@ -310,20 +310,20 @@ internal class BatteryBleClient(
                 reconnectTask?.let(mainHandler::removeCallbacks)
                 reconnectTask = null
                 if (isBluetoothEnabled()) openConnection(it)
-                else listener.onStatusChanged("Bluetooth désactivé. Active-le pour reconnecter la batterie.")
-            } ?: listener.onStatusChanged("Aucun appareil à reconnecter.")
+                else listener.onStatusChanged(message(R.string.ble_bluetooth_off_reconnect))
+            } ?: listener.onStatusChanged(message(R.string.ble_no_device_reconnect))
             return
         }
         if (!notificationsReady) {
-            listener.onStatusChanged("Connexion BLE en cours…")
+            listener.onStatusChanged(message(R.string.ble_connection_in_progress))
             return
         }
         if (readPending) {
-            listener.onStatusChanged("Lecture déjà en cours…")
+            listener.onStatusChanged(message(R.string.ble_read_in_progress))
             return
         }
         if (telemetryStale) {
-            loseConnection(connection, "Les données sont périmées.")
+            loseConnection(connection, message(R.string.ble_data_stale))
             return
         }
         pollTask?.let(mainHandler::removeCallbacks)
@@ -334,11 +334,11 @@ internal class BatteryBleClient(
     fun readControlDiagnostics() {
         val connection = gatt
         if (connection == null || !notificationsReady) {
-            listener.onStatusChanged("La connexion BLE n’est pas prête.")
+            listener.onStatusChanged(message(R.string.ble_not_ready))
             return
         }
         if (readPending || diagnosticPhase != DiagnosticPhase.NONE || queuedControl != null || controlAwaitingConfirmation != null) {
-            listener.onStatusChanged("Attends la fin de la lecture ou de la commande en cours.")
+            listener.onStatusChanged(message(R.string.ble_wait_current))
             return
         }
         pollTask?.let(mainHandler::removeCallbacks)
@@ -346,7 +346,7 @@ internal class BatteryBleClient(
         diagnosticPhase = DiagnosticPhase.INPUT
         if (!sendReadRequest(connection)) {
             diagnosticPhase = DiagnosticPhase.NONE
-            listener.onStatusChanged("Lecture des registres de diagnostic impossible ; aucune écriture envoyée.")
+            listener.onStatusChanged(message(R.string.ble_diagnostic_read_failed))
             scheduleRead(connection, POLL_INTERVAL_MS)
         }
     }
@@ -362,16 +362,16 @@ internal class BatteryBleClient(
     private fun queueOutputControl(request: PendingControl) {
         val connection = gatt
         if (connection == null || !notificationsReady) {
-            listener.onStatusChanged("La connexion BLE n’est pas prête.")
+            listener.onStatusChanged(message(R.string.ble_not_ready))
             return
         }
         if (queuedControl != null || controlAwaitingConfirmation != null) {
-            listener.onStatusChanged("Une commande de sortie est déjà en cours.")
+            listener.onStatusChanged(message(R.string.ble_command_in_progress))
             return
         }
         if (readPending) {
             queuedControl = request
-            listener.onStatusChanged("Lecture en cours ; vérification de l’état avant la commande.")
+            listener.onStatusChanged(message(R.string.ble_verify_before_command))
             return
         }
 
@@ -381,7 +381,7 @@ internal class BatteryBleClient(
         diagnosticPhase = DiagnosticPhase.NONE
         if (!sendReadRequest(connection, holdingRegisters = true)) {
             queuedControl = null
-            listener.onStatusChanged("Lecture de vérification impossible ; aucune commande envoyée.")
+            listener.onStatusChanged(message(R.string.ble_verify_failed))
         }
     }
 
@@ -407,14 +407,14 @@ internal class BatteryBleClient(
         telemetryStale = true
         listener.onConnectionChanged(false)
         listener.onTelemetryStale(true)
-        listener.onStatusChanged("$reason Reconnexion automatique…")
+        listener.onStatusChanged(message(R.string.ble_reason_reconnect, reason, message(R.string.ble_auto_reconnect)))
         scheduleReconnect()
     }
 
     private fun scheduleReconnect(delayMs: Long? = null) {
         val device = expectedDevice ?: return
         if (!isBluetoothEnabled()) {
-            listener.onStatusChanged("Bluetooth désactivé. Active-le pour reprendre la connexion.")
+            listener.onStatusChanged(message(R.string.ble_bluetooth_off_reconnect))
             return
         }
         reconnectTask?.let(mainHandler::removeCallbacks)
@@ -434,14 +434,14 @@ internal class BatteryBleClient(
         val characteristic = writeCharacteristic ?: return false
         val request = if (holdingRegisters) BatteryProtocol.readHoldingRegisters() else BatteryProtocol.readInputRegisters()
         if (!writeGattPayload(connection, characteristic, request)) {
-            loseConnection(connection, "La requête de lecture BLE n’a pas pu être envoyée.")
+            loseConnection(connection, message(R.string.ble_read_send_failed))
             return false
         }
 
         readPending = true
         pendingHoldingRead = holdingRegisters
         responseBuffer.reset()
-        listener.onStatusChanged("Lecture de l’état de la batterie…")
+        listener.onStatusChanged(message(R.string.ble_read_in_progress))
         readTimeout = Runnable {
             if (gatt === connection && readPending) {
                 readPending = false
@@ -454,12 +454,12 @@ internal class BatteryBleClient(
                 diagnosticPhase = DiagnosticPhase.NONE
                 controlTimeout?.let(mainHandler::removeCallbacks)
                 controlTimeout = null
-                val message = when {
-                    controlNotSent -> "État non vérifié ; aucune commande envoyée."
-                    commandNotConfirmed -> "Commande envoyée, mais son état n’est pas confirmé. Aucune nouvelle commande envoyée."
-                    else -> "Aucune réponse de la batterie."
+                val statusMessage = when {
+                    controlNotSent -> message(R.string.ble_state_unverified)
+                    commandNotConfirmed -> message(R.string.ble_command_no_confirmation)
+                    else -> message(R.string.ble_no_response)
                 }
-                loseConnection(connection, message)
+                loseConnection(connection, statusMessage)
             }
         }.also { mainHandler.postDelayed(it, READ_TIMEOUT_MS) }
         return true
@@ -475,7 +475,7 @@ internal class BatteryBleClient(
         val bytes = responseBuffer.toByteArray()
         if (bytes.size > MAX_RESPONSE_SIZE) {
             responseBuffer.reset()
-            listener.onStatusChanged("Réponse BLE trop longue.")
+            listener.onStatusChanged(message(R.string.ble_response_too_long))
             return
         }
         val holdingResponse = pendingHoldingRead
@@ -489,7 +489,7 @@ internal class BatteryBleClient(
         val count = ((bytes[4].toInt() and 0xFF) shl 8) or (bytes[5].toInt() and 0xFF)
         if (count !in (if (holdingResponse) 33 else 79)..REGISTER_COUNT) {
             responseBuffer.reset()
-            listener.onStatusChanged("Réponse BLE avec une plage de registres inattendue.")
+            listener.onStatusChanged(message(R.string.ble_register_range_unexpected))
             return
         }
         val frameSize = 8 + count * 2
@@ -505,7 +505,7 @@ internal class BatteryBleClient(
             val state = BatteryProtocol.parseHoldingControlState(frame)
             diagnosticPhase = DiagnosticPhase.NONE
             if (state == null) {
-                listener.onStatusChanged("Lecture des registres 24–27 invalide (format ou CRC).")
+                listener.onStatusChanged(message(R.string.ble_holding_invalid))
                 queuedControl = null
                 scheduleRead(connection, POLL_INTERVAL_MS)
                 return
@@ -518,7 +518,7 @@ internal class BatteryBleClient(
                 val raw = state.rawValue(request.control)
                 val validValue = if (request.control == OutputControl.LIGHT) raw in 0..3 else raw in 0..1
                 if (!validValue) {
-                    listener.onStatusChanged("Valeur HREG${request.control.register} inattendue ($raw) ; aucune écriture envoyée.")
+                    listener.onStatusChanged(message(R.string.ble_hreg_unexpected, request.control.register, raw))
                     scheduleRead(connection, POLL_INTERVAL_MS)
                     return
                 }
@@ -531,17 +531,18 @@ internal class BatteryBleClient(
                         else BatteryProtocol.writeOutputControl(request.control, target != 0),
                     )
                 ) {
-                    listener.onStatusChanged("Échec d’envoi ; aucun nouvel essai automatique.")
+                    listener.onStatusChanged(message(R.string.ble_write_failed))
                     scheduleRead(connection, POLL_INTERVAL_MS)
                     return
                 }
                 val sent = request.copy(cycleLight = false, expectedValue = target)
                 controlAwaitingConfirmation = sent
-                listener.onStatusChanged("Commande ${request.control.label} envoyée ; vérification du registre…")
+                val controlLabel = context.getString(request.control.labelRes)
+                listener.onStatusChanged(message(R.string.ble_command_sent, controlLabel))
                 controlTimeout = Runnable {
                     if (controlAwaitingConfirmation == sent) {
                         controlAwaitingConfirmation = null
-                        listener.onStatusChanged("Commande envoyée, mais son état n’est pas confirmé. Vérifie la batterie avant de réessayer.")
+                        listener.onStatusChanged(message(R.string.ble_command_not_confirmed))
                     }
                 }.also { mainHandler.postDelayed(it, CONTROL_CONFIRM_TIMEOUT_MS) }
                 scheduleRead(connection, CONTROL_CONFIRM_DELAY_MS, holdingRegisters = true)
@@ -552,8 +553,12 @@ internal class BatteryBleClient(
                 controlAwaitingConfirmation = null
                 controlTimeout?.let(mainHandler::removeCallbacks)
                 controlTimeout = null
-                listener.onStatusChanged(if (state.rawValue(sent.control) == sent.expectedValue) "${sent.control.label} confirmé." else "${sent.control.label} non confirmé ; aucune nouvelle commande envoyée.")
-            } ?: listener.onStatusChanged("Diagnostic lu sans écriture ; registres 24–27 affichés.")
+                val controlLabel = context.getString(sent.control.labelRes)
+                listener.onStatusChanged(
+                    if (state.rawValue(sent.control) == sent.expectedValue) message(R.string.ble_command_confirmed, controlLabel)
+                    else message(R.string.ble_command_unconfirmed, controlLabel),
+                )
+            } ?: listener.onStatusChanged(message(R.string.ble_diagnostic_read_done))
             scheduleRead(connection, POLL_INTERVAL_MS)
             return
         }
@@ -564,7 +569,7 @@ internal class BatteryBleClient(
             diagnosticPhase = DiagnosticPhase.NONE
             telemetryStale = true
             listener.onTelemetryStale(true)
-            listener.onStatusChanged(if (controlNotSent) "État non vérifié ; aucune commande envoyée." else "Réponse BLE reçue, mais format ou CRC invalide.")
+            listener.onStatusChanged(if (controlNotSent) message(R.string.ble_state_unverified) else message(R.string.ble_bad_response))
             scheduleRead(connection, POLL_INTERVAL_MS)
             return
         }
@@ -576,28 +581,28 @@ internal class BatteryBleClient(
         listener.onTelemetryStale(false)
         if (diagnosticPhase == DiagnosticPhase.INPUT) {
             diagnosticPhase = DiagnosticPhase.HOLDING
-            listener.onStatusChanged("État d’entrée actualisé ; lecture des registres de commande…")
+            listener.onStatusChanged(message(R.string.ble_input_updated))
             scheduleRead(connection, DIAGNOSTIC_DELAY_MS, holdingRegisters = true)
             return
         }
         if (queuedControl != null) {
-            listener.onStatusChanged("Lecture des registres de commande avant l’action…")
+            listener.onStatusChanged(message(R.string.ble_read_controls_before_action))
             scheduleRead(connection, CONTROL_VERIFY_DELAY_MS, holdingRegisters = true)
             return
         }
         if (controlAwaitingConfirmation != null) {
-            listener.onStatusChanged("Attente de confirmation dans les registres de commande…")
+            listener.onStatusChanged(message(R.string.ble_wait_confirmation))
             scheduleRead(connection, CONTROL_CONFIRM_DELAY_MS, holdingRegisters = true)
             return
         }
-        listener.onStatusChanged("Mesures reçues · prochaine lecture dans quelques secondes.")
+        listener.onStatusChanged(message(R.string.ble_measures_received))
         scheduleRead(connection, POLL_INTERVAL_MS)
     }
 
     private fun writeGattPayload(connection: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray): Boolean {
         val properties = characteristic.properties
         if ((properties and (BluetoothGattCharacteristic.PROPERTY_WRITE or BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)) == 0) {
-            listener.onStatusChanged("La caractéristique BLE n’accepte pas les requêtes.")
+            listener.onStatusChanged(message(R.string.ble_characteristic_no_write))
             return false
         }
         val type = if ((properties and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE) != 0) {
@@ -687,6 +692,8 @@ internal class BatteryBleClient(
         val normalized = name.uppercase(Locale.ROOT)
         return "FOSSIBOT" in normalized || "AFERIY" in normalized || "SYDPOWER" in normalized || "POWER" in normalized
     }
+
+    private fun message(id: Int, vararg args: Any) = context.getString(id, *args)
 
     private companion object {
         const val ADDRESS = 0x11
