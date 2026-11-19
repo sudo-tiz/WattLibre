@@ -6,7 +6,7 @@
 
 Monitor and control compatible AFERIY, FOSSiBOT and SYDPOWER power stations from your phone over local Bluetooth. No account, cloud service, Internet permission, or Google Play services.
 
-[![F-Droid](https://img.shields.io/f-droid/v/fr.sudotiz.wattlibre?label=F-Droid)](https://f-droid.org/packages/fr.sudotiz.wattlibre)
+[![F-Droid](https://img.shields.io/f-droid/v/fr.sudotiz.wattlibre?label=F-Droid)](https://f-droid.org/packages/fr.sudotiz.wattlibre) (soon)
 [![GitHub Release](https://img.shields.io/github/v/release/sudo-Tiz/WattLibre)](https://github.com/sudo-Tiz/WattLibre/releases)
 
 ## Features
@@ -29,7 +29,7 @@ These captures show the English interface. Device-specific Bluetooth identifiers
 
 ## Quick start
 
-1. Install WattLibre from [F-Droid](https://f-droid.org/packages/fr.sudotiz.wattlibre) or [GitHub Releases](https://github.com/sudo-Tiz/WattLibre/releases).
+1. Install WattLibre from [F-Droid](https://f-droid.org/packages/fr.sudotiz.wattlibre) (soon) or [GitHub Releases](https://github.com/sudo-Tiz/WattLibre/releases).
 2. Turn on the power station and Bluetooth, then keep the phone nearby.
 3. Scan for the station, select it, and use the controls on its page.
 
