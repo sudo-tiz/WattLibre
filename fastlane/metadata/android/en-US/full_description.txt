@@ -1,0 +1,12 @@
+Monitor and control compatible AFERIY, FOSSiBOT and SYDPOWER power stations from your phone over local Bluetooth. No account, cloud service, Internet permission, or Google Play services.
+
+Features:
+• View battery charge, incoming and outgoing power, and estimated runtime
+• Control USB, AC, DC master, and lighting modes
+• Reconnect automatically after a connection drop
+• Save a custom device name on this phone
+• Inspect and copy detailed diagnostics when troubleshooting
+
+Designed for power stations using a BrightEMS-compatible Bluetooth protocol. Tested with the AFERIY P280.
+
+Bluetooth permissions are required to find and connect to a station. Android 11 and older also require Location permission and the Location service enabled for BLE scanning; WattLibre does not access location data.

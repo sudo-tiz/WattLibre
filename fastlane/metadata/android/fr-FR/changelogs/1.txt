@@ -1,0 +1,5 @@
+Première version de WattLibre.
+
+• Suivi et contrôle en Bluetooth local
+• Mesures de batterie, d’entrée et de sortie
+• Interface en français et en anglais

@@ -1,0 +1,5 @@
+Initial release of WattLibre.
+
+• Local Bluetooth monitoring and control
+• Battery, input and output readings
+• English and French interface

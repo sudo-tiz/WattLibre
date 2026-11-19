@@ -1,0 +1,12 @@
+Surveillez et contrôlez les stations compatibles AFERIY, FOSSiBOT et SYDPOWER depuis votre téléphone, en Bluetooth local. Aucun compte, service cloud, accès Internet ou service Google Play n’est nécessaire.
+
+Fonctionnalités :
+• Consultez la charge de la batterie, les puissances d’entrée et de sortie et l’autonomie estimée
+• Contrôlez les sorties USB, AC, le maître DC et les modes d’éclairage
+• Reconnexion automatique après une coupure
+• Nom personnalisé mémorisé sur ce téléphone
+• Diagnostic détaillé à consulter ou à copier en cas de problème
+
+Conçue pour les stations utilisant un protocole Bluetooth compatible BrightEMS. Testée avec l’AFERIY P280.
+
+Les permissions Bluetooth sont nécessaires à la recherche et à la connexion. Sur Android 11 et antérieur, Android exige aussi la permission de localisation et l’activation du service de localisation pour scanner en Bluetooth; WattLibre n’accède pas aux données de localisation.

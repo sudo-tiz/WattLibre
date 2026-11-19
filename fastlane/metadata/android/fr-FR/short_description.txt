@@ -1,0 +1,1 @@
+Contrôle Bluetooth local des stations AFERIY, FOSSiBOT et SYDPOWER.
